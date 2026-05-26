@@ -9993,7 +9993,9 @@ const loggingStatus = self.MultiPageBackgroundLoggingStatus?.createLoggingStatus
 
 const tabRuntime = self.MultiPageBackgroundTabRuntime?.createTabRuntime({
   addLog,
+  applyFingerprintToTab: browserFingerprintModule?.applyFingerprintToTab,
   chrome,
+  getOrCreateSessionFingerprintForState,
   getSourceLabel,
   getState,
   isLocalhostOAuthCallbackUrl,

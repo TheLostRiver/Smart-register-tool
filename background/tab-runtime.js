@@ -4,7 +4,9 @@
   function createTabRuntime(deps = {}) {
     const {
       addLog,
+      applyFingerprintToTab = null,
       chrome,
+      getOrCreateSessionFingerprintForState = null,
       getSourceLabel,
       getState,
       isLocalhostOAuthCallbackUrl,
@@ -229,6 +231,70 @@
       return state.tabRegistry || {};
     }
 
+    async function ensureFingerprintAppliedForTab(tabId, options = {}) {
+      if (!Number.isInteger(tabId)) {
+        return null;
+      }
+
+      const state = await getState();
+      if (!Boolean(state?.browserFingerprintEnabled)) {
+        return null;
+      }
+      if (typeof getOrCreateSessionFingerprintForState !== 'function') {
+        return null;
+      }
+
+      const fingerprintSession = await getOrCreateSessionFingerprintForState(state);
+      if (!fingerprintSession?.sessionFingerprint || !String(fingerprintSession?.browserFingerprintSessionId || '').trim()) {
+        return null;
+      }
+
+      const appliedTabs = state?.browserFingerprintAppliedTabs && typeof state.browserFingerprintAppliedTabs === 'object'
+        ? state.browserFingerprintAppliedTabs
+        : {};
+      const existingEntry = appliedTabs[String(tabId)] || null;
+      const fingerprintSessionId = String(fingerprintSession.browserFingerprintSessionId || '').trim();
+      if (existingEntry?.fingerprintSessionId === fingerprintSessionId) {
+        return {
+          alreadyApplied: true,
+          tabId,
+          source: options.source || existingEntry.source || 'unknown',
+          fingerprintSessionId,
+          appliedAt: Math.max(0, Number(existingEntry.appliedAt) || 0),
+        };
+      }
+
+      if (typeof applyFingerprintToTab !== 'function') {
+        return null;
+      }
+
+      try {
+        const result = await applyFingerprintToTab(tabId, fingerprintSession.sessionFingerprint, {
+          fingerprintSessionId,
+          source: options.source || 'unknown',
+        });
+        const nextAppliedTabs = {
+          ...appliedTabs,
+          [String(tabId)]: {
+            fingerprintSessionId,
+            appliedAt: Math.max(0, Number(result?.appliedAt) || Date.now()),
+            source: options.source || 'unknown',
+          },
+        };
+        await setState({ browserFingerprintAppliedTabs: nextAppliedTabs });
+        await addLog(`[fingerprint] applied debugger overrides to tab ${tabId}`, 'info');
+        await addLog(`[fingerprint] injected page fingerprint overrides to tab ${tabId}`, 'info');
+        return {
+          ...(result || {}),
+          fingerprintSessionId,
+        };
+      } catch (error) {
+        const reason = error?.message || String(error || 'unknown error');
+        await addLog(`[fingerprint] fingerprint apply failed on tab ${tabId}: ${reason}`, 'error');
+        throw error;
+      }
+    }
+
     async function registerTab(source, tabId) {
       let registry = await getTabRegistry();
       let windowId = null;
@@ -246,6 +312,7 @@
         ...(windowId !== null ? { windowId } : {}),
       });
       await setState({ tabRegistry: registry });
+      await ensureFingerprintAppliedForTab(tabId, { source });
       console.log(LOG_PREFIX, `Tab registered: ${source} -> ${tabId}`);
     }
 
@@ -1006,6 +1073,7 @@
       rememberSourceLastUrl,
       resolveResponseTimeoutMs,
       reuseOrCreateTab,
+      ensureFingerprintAppliedForTab,
       sendTabMessageWithTimeout,
       sendToContentScript,
       sendToContentScriptResilient,
