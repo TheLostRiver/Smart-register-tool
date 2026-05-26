@@ -49,6 +49,7 @@ test('applyFingerprintToTab maps debugger commands for ua, locale, and timezone'
   });
 
   const fingerprintSession = buildSampleFingerprint();
+  const expectedPayload = moduleApi.buildPageFingerprintPayload(fingerprintSession.sessionFingerprint);
   await moduleApi.applyFingerprintToTab(123, fingerprintSession.sessionFingerprint, {
     fingerprintSessionId: fingerprintSession.browserFingerprintSessionId,
     source: 'signup-page',
@@ -76,7 +77,15 @@ test('applyFingerprintToTab maps debugger commands for ua, locale, and timezone'
       },
     },
   ]);
-  assert.equal(scriptCalls.length, 1);
+  assert.deepEqual(scriptCalls, [
+    {
+      target: { tabId: 123 },
+      world: 'MAIN',
+      args: [expectedPayload],
+      func: scriptCalls[0].func,
+    },
+  ]);
+  assert.equal(typeof scriptCalls[0].func, 'function');
 });
 
 test('buildPageFingerprintPayload exposes navigator and screen overrides for injection', () => {
@@ -90,4 +99,86 @@ test('buildPageFingerprintPayload exposes navigator and screen overrides for inj
   assert.equal(payload.screen.width, fingerprintSession.sessionFingerprint.device.screen.width);
   assert.equal(payload.screen.height, fingerprintSession.sessionFingerprint.device.screen.height);
   assert.equal(payload.privacy.webrtcMode, 'masked');
+});
+
+test('buildPageFingerprintPayload fills safe defaults for missing optional fields', () => {
+  const moduleApi = createBrowserFingerprintModule();
+  const payload = moduleApi.buildPageFingerprintPayload({});
+
+  assert.deepEqual(payload.navigator, {
+    userAgent: '',
+    platform: 'Win32',
+    language: 'en-US',
+    languages: ['en-US', 'en'],
+    hardwareConcurrency: 8,
+    deviceMemory: 8,
+    maxTouchPoints: 0,
+    doNotTrack: '0',
+  });
+  assert.deepEqual(payload.screen, {
+    width: 1366,
+    height: 768,
+    availWidth: 1366,
+    availHeight: 728,
+    colorDepth: 24,
+    pixelDepth: 24,
+  });
+  assert.deepEqual(payload.window, {
+    devicePixelRatio: 1,
+  });
+  assert.deepEqual(payload.privacy, {
+    doNotTrack: '0',
+    webrtcMode: 'real',
+  });
+  assert.deepEqual(payload.profiles, {
+    fontProfile: 'windows-latin',
+    mediaDevicesProfile: 'desktop-dual',
+    speechVoicesProfile: 'windows-en-us',
+  });
+  assert.deepEqual(payload.meta, {
+    osFamily: 'windows',
+    browserFamily: 'chrome',
+    region: 'US',
+    seed: '',
+  });
+});
+
+test('applyFingerprintToTab fails fast when required identity fields are missing', async () => {
+  const debuggerCalls = [];
+  const scriptCalls = [];
+  const moduleApi = createBrowserFingerprintModule({
+    chrome: {
+      debugger: {
+        attach: async () => {
+          debuggerCalls.push('attach');
+        },
+        detach: async () => {
+          debuggerCalls.push('detach');
+        },
+        sendCommand: async () => {
+          debuggerCalls.push('sendCommand');
+        },
+      },
+      scripting: {
+        executeScript: async () => {
+          scriptCalls.push('executeScript');
+          return [{ result: true }];
+        },
+      },
+    },
+  });
+
+  await assert.rejects(
+    () => moduleApi.applyFingerprintToTab(123, {
+      identity: {
+        userAgent: 'Mozilla/5.0',
+        platform: 'Win32',
+        languages: ['en-US'],
+      },
+    }),
+    /Missing required fingerprint field: identity\.language/
+  );
+
+  assert.deepEqual(debuggerCalls, []);
+  assert.deepEqual(scriptCalls, []);
 });

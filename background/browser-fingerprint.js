@@ -67,6 +67,38 @@
     return ['real', 'disabled', 'masked'].includes(normalized) ? normalized : 'real';
   }
 
+  function stringOrFallback(value, fallback = '') {
+    return typeof value === 'string' ? value : fallback;
+  }
+
+  function finiteNumberOrFallback(value, fallback = 0) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  }
+
+  function requireFingerprintString(value, fieldPath) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new Error('Missing required fingerprint field: ' + fieldPath);
+    }
+    return value;
+  }
+
+  function requireFingerprintLanguages(value, fieldPath) {
+    if (!Array.isArray(value) || value.length === 0) {
+      throw new Error('Missing required fingerprint field: ' + fieldPath);
+    }
+
+    const normalizedLanguages = value
+      .filter((entry) => typeof entry === 'string')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (normalizedLanguages.length === 0) {
+      throw new Error('Missing required fingerprint field: ' + fieldPath);
+    }
+
+    return normalizedLanguages;
+  }
+
   function createBrowserFingerprintModule(deps = {}) {
     const {
       now = () => Date.now(),
@@ -88,40 +120,42 @@
 
       return {
         navigator: {
-          userAgent: identity.userAgent,
-          platform: identity.platform,
-          language: identity.language,
-          languages: Array.isArray(identity.languages) ? identity.languages.slice() : [],
-          hardwareConcurrency: device.hardwareConcurrency,
-          deviceMemory: device.deviceMemory,
-          maxTouchPoints: device.maxTouchPoints,
-          doNotTrack: privacy.doNotTrack,
+          userAgent: stringOrFallback(identity.userAgent),
+          platform: stringOrFallback(identity.platform, 'Win32'),
+          language: stringOrFallback(identity.language, 'en-US'),
+          languages: Array.isArray(identity.languages) && identity.languages.length
+            ? identity.languages.slice()
+            : ['en-US', 'en'],
+          hardwareConcurrency: finiteNumberOrFallback(device.hardwareConcurrency, 8),
+          deviceMemory: finiteNumberOrFallback(device.deviceMemory, 8),
+          maxTouchPoints: finiteNumberOrFallback(device.maxTouchPoints),
+          doNotTrack: privacy.doNotTrack === '1' ? '1' : '0',
         },
         screen: {
-          width: screen.width,
-          height: screen.height,
-          availWidth: screen.availWidth,
-          availHeight: screen.availHeight,
-          colorDepth: screen.colorDepth,
-          pixelDepth: screen.pixelDepth,
+          width: finiteNumberOrFallback(screen.width, 1366),
+          height: finiteNumberOrFallback(screen.height, 768),
+          availWidth: finiteNumberOrFallback(screen.availWidth, 1366),
+          availHeight: finiteNumberOrFallback(screen.availHeight, 728),
+          colorDepth: finiteNumberOrFallback(screen.colorDepth, 24),
+          pixelDepth: finiteNumberOrFallback(screen.pixelDepth, 24),
         },
         window: {
-          devicePixelRatio: device.devicePixelRatio,
+          devicePixelRatio: finiteNumberOrFallback(device.devicePixelRatio, 1),
         },
         privacy: {
-          doNotTrack: privacy.doNotTrack,
-          webrtcMode: privacy.webrtcMode,
+          doNotTrack: privacy.doNotTrack === '1' ? '1' : '0',
+          webrtcMode: normalizeWebRtcMode(privacy.webrtcMode),
         },
         profiles: {
-          fontProfile: profiles.fontProfile,
-          mediaDevicesProfile: profiles.mediaDevicesProfile,
-          speechVoicesProfile: profiles.speechVoicesProfile,
+          fontProfile: stringOrFallback(profiles.fontProfile, 'windows-latin'),
+          mediaDevicesProfile: stringOrFallback(profiles.mediaDevicesProfile, 'desktop-dual'),
+          speechVoicesProfile: stringOrFallback(profiles.speechVoicesProfile, 'windows-en-us'),
         },
         meta: {
-          osFamily: meta.osFamily,
-          browserFamily: meta.browserFamily,
-          region: meta.region,
-          seed: meta.seed,
+          osFamily: stringOrFallback(meta.osFamily, 'windows'),
+          browserFamily: stringOrFallback(meta.browserFamily, 'chrome'),
+          region: stringOrFallback(meta.region, 'US'),
+          seed: stringOrFallback(meta.seed),
         },
       };
     }
@@ -133,23 +167,28 @@
 
       const target = { tabId };
       const identity = sessionFingerprint && sessionFingerprint.identity ? sessionFingerprint.identity : {};
+      const userAgent = requireFingerprintString(identity.userAgent, 'identity.userAgent');
+      const platform = requireFingerprintString(identity.platform, 'identity.platform');
+      const language = requireFingerprintString(identity.language, 'identity.language');
+      const languages = requireFingerprintLanguages(identity.languages, 'identity.languages');
+      const timezone = requireFingerprintString(identity.timezone, 'identity.timezone');
       const payload = buildPageFingerprintPayload(sessionFingerprint);
 
       await chrome.debugger.attach(target, '1.3');
 
       try {
         await chrome.debugger.sendCommand(target, 'Emulation.setUserAgentOverride', {
-          userAgent: identity.userAgent,
-          platform: identity.platform,
-          acceptLanguage: Array.isArray(identity.languages) ? identity.languages.join(',') : '',
+          userAgent,
+          platform,
+          acceptLanguage: languages.join(','),
         });
 
         await chrome.debugger.sendCommand(target, 'Emulation.setTimezoneOverride', {
-          timezoneId: identity.timezone,
+          timezoneId: timezone,
         });
 
         await chrome.debugger.sendCommand(target, 'Emulation.setLocaleOverride', {
-          locale: identity.language,
+          locale: language,
         });
 
         await chrome.scripting.executeScript({
@@ -159,6 +198,10 @@
           func: (pageFingerprintPayload) => {
             function overrideValue(targetObject, propertyName, value) {
               if (!targetObject || typeof propertyName !== 'string') {
+                return;
+              }
+
+              if (typeof value === 'undefined') {
                 return;
               }
 
