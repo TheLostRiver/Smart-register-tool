@@ -1108,6 +1108,16 @@ const PERSISTED_SETTING_DEFAULTS = {
   gopayHelperRemainingUses: 0,
   gopayHelperAutoModeEnabled: false,
   gopayHelperApiKeyStatus: '',
+  browserFingerprintEnabled: false,
+  browserFingerprintMode: 'per_run',
+  browserFingerprintLocaleMode: 'random',
+  browserFingerprintTimezoneMode: 'random',
+  browserFingerprintWebRtcMode: 'masked',
+  browserFingerprintFontsMode: 'random_profile',
+  browserFingerprintMediaDevicesMode: 'random_profile',
+  browserFingerprintSpeechVoicesMode: 'random_profile',
+  browserFingerprintDoNotTrackEnabled: false,
+  browserFingerprintColorSchemeMode: 'random',
   autoRunSkipFailures: false,
   autoRunRetryNonFreeTrial: false,
   autoRunRetryPaypalCallback: false,
@@ -1118,6 +1128,16 @@ const PERSISTED_SETTING_DEFAULTS = {
   autoRunDelayMinutes: 30,
   autoStepDelaySeconds: null,
   step6CookieCleanupEnabled: false,
+  browserFingerprintEnabled: false,
+  browserFingerprintMode: 'per_run',
+  browserFingerprintLocaleMode: 'random',
+  browserFingerprintTimezoneMode: 'random',
+  browserFingerprintWebRtcMode: 'masked',
+  browserFingerprintFontsMode: 'random_profile',
+  browserFingerprintMediaDevicesMode: 'random_profile',
+  browserFingerprintSpeechVoicesMode: 'random_profile',
+  browserFingerprintDoNotTrackEnabled: false,
+  browserFingerprintColorSchemeMode: 'random',
   phoneVerificationEnabled: false,
   phoneSignupReloginAfterBindEmailEnabled: false,
   phoneSmsReuseEnabled: DEFAULT_HERO_SMS_REUSE_ENABLED,
@@ -3329,6 +3349,41 @@ function normalizePersistentSettingValue(key, value) {
       return String(value || '').trim();
     case 'customPassword':
       return String(value || '');
+    case 'browserFingerprintEnabled':
+    case 'browserFingerprintDoNotTrackEnabled':
+      return Boolean(value);
+    case 'browserFingerprintMode':
+      return value === 'per_run'
+        ? 'per_run'
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintMode;
+    case 'browserFingerprintLocaleMode':
+      return ['ip_based', 'random'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintLocaleMode;
+    case 'browserFingerprintTimezoneMode':
+      return ['ip_based', 'random'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintTimezoneMode;
+    case 'browserFingerprintWebRtcMode':
+      return ['real', 'disabled', 'masked'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintWebRtcMode;
+    case 'browserFingerprintFontsMode':
+      return ['real', 'random_profile'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintFontsMode;
+    case 'browserFingerprintMediaDevicesMode':
+      return ['real', 'random_profile'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintMediaDevicesMode;
+    case 'browserFingerprintSpeechVoicesMode':
+      return ['real', 'random_profile'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintSpeechVoicesMode;
+    case 'browserFingerprintColorSchemeMode':
+      return ['light', 'dark', 'random'].includes(value)
+        ? value
+        : PERSISTED_SETTING_DEFAULTS.browserFingerprintColorSchemeMode;
     case 'signupMethod':
       return normalizeSignupMethod(value);
     case 'plusPaymentMethod':
@@ -3604,7 +3659,30 @@ function normalizePersistentSettingValue(key, value) {
     case 'gopayHelperLocalSmsHelperEnabled':
     case 'gopayHelperAutoModeEnabled':
     case 'autoRunDelayEnabled':
+    case 'browserFingerprintEnabled':
+    case 'browserFingerprintDoNotTrackEnabled':
       return Boolean(value);
+    case 'browserFingerprintMode':
+      return 'per_run';
+    case 'browserFingerprintLocaleMode':
+    case 'browserFingerprintTimezoneMode':
+      return String(value || '').trim().toLowerCase() === 'ip_based' ? 'ip_based' : 'random';
+    case 'browserFingerprintWebRtcMode': {
+      const normalizedBrowserFingerprintWebRtcMode = String(value || '').trim().toLowerCase();
+      return ['real', 'disabled', 'masked'].includes(normalizedBrowserFingerprintWebRtcMode)
+        ? normalizedBrowserFingerprintWebRtcMode
+        : 'masked';
+    }
+    case 'browserFingerprintFontsMode':
+    case 'browserFingerprintMediaDevicesMode':
+    case 'browserFingerprintSpeechVoicesMode':
+      return String(value || '').trim().toLowerCase() === 'real' ? 'real' : 'random_profile';
+    case 'browserFingerprintColorSchemeMode': {
+      const normalizedBrowserFingerprintColorSchemeMode = String(value || '').trim().toLowerCase();
+      return ['light', 'dark', 'random'].includes(normalizedBrowserFingerprintColorSchemeMode)
+        ? normalizedBrowserFingerprintColorSchemeMode
+        : 'random';
+    }
     case 'operationDelayEnabled':
       return typeof value === 'boolean' ? value : true;
     case 'step6CookieCleanupEnabled':
