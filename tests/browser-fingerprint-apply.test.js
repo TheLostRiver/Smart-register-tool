@@ -54,9 +54,28 @@ test('applyFingerprintToTab maps debugger commands for ua, locale, and timezone'
     source: 'signup-page',
   });
 
-  assert.ok(debuggerCalls.some((entry) => entry.method === 'Emulation.setUserAgentOverride'));
-  assert.ok(debuggerCalls.some((entry) => entry.method === 'Emulation.setTimezoneOverride'));
-  assert.ok(debuggerCalls.some((entry) => entry.method === 'Emulation.setLocaleOverride'));
+  assert.deepEqual(debuggerCalls, [
+    {
+      method: 'Emulation.setUserAgentOverride',
+      params: {
+        userAgent: fingerprintSession.sessionFingerprint.identity.userAgent,
+        platform: fingerprintSession.sessionFingerprint.identity.platform,
+        acceptLanguage: fingerprintSession.sessionFingerprint.identity.languages.join(','),
+      },
+    },
+    {
+      method: 'Emulation.setTimezoneOverride',
+      params: {
+        timezoneId: fingerprintSession.sessionFingerprint.identity.timezone,
+      },
+    },
+    {
+      method: 'Emulation.setLocaleOverride',
+      params: {
+        locale: fingerprintSession.sessionFingerprint.identity.language,
+      },
+    },
+  ]);
   assert.equal(scriptCalls.length, 1);
 });
 

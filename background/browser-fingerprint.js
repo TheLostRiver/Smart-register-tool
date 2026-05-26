@@ -70,6 +70,7 @@
   function createBrowserFingerprintModule(deps = {}) {
     const {
       now = () => Date.now(),
+      chrome = globalThis.chrome,
       cryptoRandomUuid = () => (
         typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
           ? crypto.randomUUID()
@@ -77,10 +78,132 @@
       ),
     } = deps;
 
+    function buildPageFingerprintPayload(sessionFingerprint = {}) {
+      const identity = sessionFingerprint.identity || {};
+      const device = sessionFingerprint.device || {};
+      const screen = device.screen || {};
+      const privacy = sessionFingerprint.privacy || {};
+      const profiles = sessionFingerprint.profiles || {};
+      const meta = sessionFingerprint.meta || {};
+
+      return {
+        navigator: {
+          userAgent: identity.userAgent,
+          platform: identity.platform,
+          language: identity.language,
+          languages: Array.isArray(identity.languages) ? identity.languages.slice() : [],
+          hardwareConcurrency: device.hardwareConcurrency,
+          deviceMemory: device.deviceMemory,
+          maxTouchPoints: device.maxTouchPoints,
+          doNotTrack: privacy.doNotTrack,
+        },
+        screen: {
+          width: screen.width,
+          height: screen.height,
+          availWidth: screen.availWidth,
+          availHeight: screen.availHeight,
+          colorDepth: screen.colorDepth,
+          pixelDepth: screen.pixelDepth,
+        },
+        window: {
+          devicePixelRatio: device.devicePixelRatio,
+        },
+        privacy: {
+          doNotTrack: privacy.doNotTrack,
+          webrtcMode: privacy.webrtcMode,
+        },
+        profiles: {
+          fontProfile: profiles.fontProfile,
+          mediaDevicesProfile: profiles.mediaDevicesProfile,
+          speechVoicesProfile: profiles.speechVoicesProfile,
+        },
+        meta: {
+          osFamily: meta.osFamily,
+          browserFamily: meta.browserFamily,
+          region: meta.region,
+          seed: meta.seed,
+        },
+      };
+    }
+
+    async function applyFingerprintToTab(tabId, sessionFingerprint, options = {}) {
+      if (!chrome || !chrome.debugger || !chrome.scripting) {
+        throw new Error('Chrome debugger and scripting APIs are required to apply a fingerprint.');
+      }
+
+      const target = { tabId };
+      const identity = sessionFingerprint && sessionFingerprint.identity ? sessionFingerprint.identity : {};
+      const payload = buildPageFingerprintPayload(sessionFingerprint);
+
+      await chrome.debugger.attach(target, '1.3');
+
+      try {
+        await chrome.debugger.sendCommand(target, 'Emulation.setUserAgentOverride', {
+          userAgent: identity.userAgent,
+          platform: identity.platform,
+          acceptLanguage: Array.isArray(identity.languages) ? identity.languages.join(',') : '',
+        });
+
+        await chrome.debugger.sendCommand(target, 'Emulation.setTimezoneOverride', {
+          timezoneId: identity.timezone,
+        });
+
+        await chrome.debugger.sendCommand(target, 'Emulation.setLocaleOverride', {
+          locale: identity.language,
+        });
+
+        await chrome.scripting.executeScript({
+          target,
+          world: 'MAIN',
+          args: [payload],
+          func: (pageFingerprintPayload) => {
+            function overrideValue(targetObject, propertyName, value) {
+              if (!targetObject || typeof propertyName !== 'string') {
+                return;
+              }
+
+              Object.defineProperty(targetObject, propertyName, {
+                configurable: true,
+                enumerable: true,
+                get: () => value,
+              });
+            }
+
+            function overrideNestedValues(targetObject, values) {
+              if (!targetObject || !values || typeof values !== 'object') {
+                return;
+              }
+
+              for (const [propertyName, value] of Object.entries(values)) {
+                overrideValue(targetObject, propertyName, value);
+              }
+            }
+
+            overrideNestedValues(Navigator.prototype, pageFingerprintPayload.navigator);
+            overrideNestedValues(screen, pageFingerprintPayload.screen);
+            overrideValue(window, 'devicePixelRatio', pageFingerprintPayload.window.devicePixelRatio);
+
+            window.__MULTIPAGE_BROWSER_FINGERPRINT__ = pageFingerprintPayload;
+          },
+        });
+      } finally {
+        await chrome.debugger.detach(target);
+      }
+
+      return {
+        tabId,
+        source: options.source || 'unknown',
+        fingerprintSessionId: options.fingerprintSessionId || null,
+        appliedAt: now(),
+        payload,
+      };
+    }
+
     function generateFingerprintSession(options = {}) {
       const strategy = options && typeof options === 'object' ? (options.strategy || {}) : {};
-      const generatedSeed = String(cryptoRandomUuid()).trim();
-      const effectiveSeed = String(options.seed || generatedSeed).trim() || generatedSeed || 'fp-' + now();
+      const providedSeed = String(options.seed || '').trim();
+      const generatedSeed = providedSeed ? '' : String(cryptoRandomUuid()).trim();
+      const effectiveSeed = providedSeed || generatedSeed || 'fp-' + now();
       const seedValue = createSeededNumber(effectiveSeed);
       const region = normalizeRegion(options.regionHint);
       const regionPreset = REGION_PRESETS[region];
@@ -144,6 +267,8 @@
     }
 
     return {
+      buildPageFingerprintPayload,
+      applyFingerprintToTab,
       generateFingerprintSession,
     };
   }
