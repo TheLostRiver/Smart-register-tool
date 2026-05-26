@@ -182,3 +182,56 @@ test('applyFingerprintToTab fails fast when required identity fields are missing
   assert.deepEqual(debuggerCalls, []);
   assert.deepEqual(scriptCalls, []);
 });
+
+test('applyFingerprintToTab reuses normalized languages for debugger and injected payload', async () => {
+  const debuggerCalls = [];
+  const scriptCalls = [];
+  const moduleApi = createBrowserFingerprintModule({
+    chrome: {
+      debugger: {
+        attach: async () => {},
+        detach: async () => {},
+        sendCommand: async (_target, method, params) => {
+          debuggerCalls.push({ method, params });
+        },
+      },
+      scripting: {
+        executeScript: async (payload) => {
+          scriptCalls.push(payload);
+          return [{ result: true }];
+        },
+      },
+    },
+  });
+
+  await moduleApi.applyFingerprintToTab(321, {
+    identity: {
+      userAgent: 'Mozilla/5.0',
+      platform: 'Win32',
+      language: 'en-US',
+      languages: [' en-US ', '', 42, 'en'],
+      timezone: 'America/New_York',
+    },
+    device: {
+      screen: {
+        width: 1366,
+        height: 768,
+        availWidth: 1366,
+        availHeight: 728,
+        colorDepth: 24,
+        pixelDepth: 24,
+      },
+      devicePixelRatio: 1,
+      hardwareConcurrency: 8,
+      deviceMemory: 8,
+      maxTouchPoints: 0,
+    },
+    privacy: {
+      doNotTrack: '0',
+      webrtcMode: 'real',
+    },
+  });
+
+  assert.equal(debuggerCalls[0].params.acceptLanguage, 'en-US,en');
+  assert.deepEqual(scriptCalls[0].args[0].navigator.languages, ['en-US', 'en']);
+});

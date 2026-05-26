@@ -166,13 +166,25 @@
       }
 
       const target = { tabId };
-      const identity = sessionFingerprint && sessionFingerprint.identity ? sessionFingerprint.identity : {};
+      const fingerprint = sessionFingerprint && typeof sessionFingerprint === 'object' ? sessionFingerprint : {};
+      const identity = fingerprint.identity && typeof fingerprint.identity === 'object' ? fingerprint.identity : {};
       const userAgent = requireFingerprintString(identity.userAgent, 'identity.userAgent');
       const platform = requireFingerprintString(identity.platform, 'identity.platform');
       const language = requireFingerprintString(identity.language, 'identity.language');
       const languages = requireFingerprintLanguages(identity.languages, 'identity.languages');
       const timezone = requireFingerprintString(identity.timezone, 'identity.timezone');
-      const payload = buildPageFingerprintPayload(sessionFingerprint);
+      const normalizedFingerprint = {
+        ...fingerprint,
+        identity: {
+          ...identity,
+          userAgent,
+          platform,
+          language,
+          languages,
+          timezone,
+        },
+      };
+      const payload = buildPageFingerprintPayload(normalizedFingerprint);
 
       await chrome.debugger.attach(target, '1.3');
 
