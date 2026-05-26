@@ -11,6 +11,8 @@
       buildPersistentSettingsPayload,
       broadcastDataUpdate,
       applyIpProxySettingsFromState,
+      getOrCreateSessionFingerprintForState = null,
+      rerandomizeSessionFingerprintForState = null,
       cancelScheduledAutoRun,
       checkIcloudSession,
       clearAccountRunHistory,
@@ -1757,6 +1759,9 @@
           const autoRunRetryNonFreeTrial = Boolean(message.payload?.autoRunRetryNonFreeTrial);
           const autoRunRetryPaypalCallback = Boolean(message.payload?.autoRunRetryPaypalCallback);
           const mode = message.payload?.mode === 'continue' ? 'continue' : 'restart';
+          if (typeof getOrCreateSessionFingerprintForState === 'function') {
+            await getOrCreateSessionFingerprintForState(state);
+          }
           await setState({ autoRunSkipFailures, autoRunRetryNonFreeTrial, autoRunRetryPaypalCallback });
           startAutoRunLoop(totalRuns, { autoRunSkipFailures, autoRunRetryNonFreeTrial, autoRunRetryPaypalCallback, mode });
           return { ok: true };
@@ -1997,6 +2002,18 @@
             modeValidation,
             proxyRouting,
             state: await getState(),
+          };
+        }
+
+        case 'RERANDOMIZE_BROWSER_FINGERPRINT': {
+          const state = await ensureManualInteractionAllowed('重随机浏览器指纹');
+          if (typeof rerandomizeSessionFingerprintForState !== 'function') {
+            throw new Error('浏览器指纹重随机能力未接入。');
+          }
+          const nextFingerprintSession = await rerandomizeSessionFingerprintForState(state);
+          return {
+            ok: true,
+            ...(nextFingerprintSession || {}),
           };
         }
 

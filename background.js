@@ -27,6 +27,7 @@ importScripts(
   'background/ip-proxy-core.js',
   'background/cpa-api.js',
   'background/sub2api-api.js',
+  'background/browser-fingerprint.js',
   'background/panel-bridge.js',
   'background/registration-email-state.js',
   'background/workflow-engine.js',
@@ -360,6 +361,10 @@ const runtimeStateHelpers = self.MultiPageBackgroundRuntimeState?.createRuntimeS
   DEFAULT_ACTIVE_FLOW_ID,
   defaultNodeStatuses: DEFAULT_NODE_STATUSES,
 }) || null;
+const browserFingerprintModule = self.MultiPageBackgroundBrowserFingerprint?.createBrowserFingerprintModule?.({
+  chrome,
+  now: () => Date.now(),
+}) || null;
 const DEFAULT_REGISTRATION_EMAIL_STATE = registrationEmailStateHelpers?.DEFAULT_REGISTRATION_EMAIL_STATE || {
   current: '',
   previous: '',
@@ -440,6 +445,96 @@ function buildStatePatchWithRuntimeState(currentState = {}, updates = {}) {
 
 function statePatchHasChanges(state = {}, patch = {}) {
   return Object.keys(patch).some((key) => JSON.stringify(state?.[key] ?? null) !== JSON.stringify(patch[key] ?? null));
+}
+
+function getBrowserFingerprintStrategyFromState(state = {}) {
+  return {
+    browserFingerprintLocaleMode: String(state?.browserFingerprintLocaleMode || 'random').trim().toLowerCase() === 'ip_based'
+      ? 'ip_based'
+      : 'random',
+    browserFingerprintTimezoneMode: String(state?.browserFingerprintTimezoneMode || 'random').trim().toLowerCase() === 'ip_based'
+      ? 'ip_based'
+      : 'random',
+    browserFingerprintWebRtcMode: String(state?.browserFingerprintWebRtcMode || 'masked').trim().toLowerCase(),
+    browserFingerprintFontsMode: String(state?.browserFingerprintFontsMode || 'random_profile').trim().toLowerCase() === 'real'
+      ? 'real'
+      : 'random_profile',
+    browserFingerprintMediaDevicesMode: String(state?.browserFingerprintMediaDevicesMode || 'random_profile').trim().toLowerCase() === 'real'
+      ? 'real'
+      : 'random_profile',
+    browserFingerprintSpeechVoicesMode: String(state?.browserFingerprintSpeechVoicesMode || 'random_profile').trim().toLowerCase() === 'real'
+      ? 'real'
+      : 'random_profile',
+    browserFingerprintDoNotTrackEnabled: Boolean(state?.browserFingerprintDoNotTrackEnabled),
+    browserFingerprintColorSchemeMode: ['light', 'dark', 'random'].includes(String(state?.browserFingerprintColorSchemeMode || '').trim().toLowerCase())
+      ? String(state?.browserFingerprintColorSchemeMode || '').trim().toLowerCase()
+      : 'random',
+  };
+}
+
+function resolveFingerprintRegionHint(state = {}) {
+  const preferredRegion = String(state?.ipProxyAppliedExitRegion || '').trim().toUpperCase();
+  if (preferredRegion === 'US' || preferredRegion === 'JP') {
+    return preferredRegion;
+  }
+  const fallbackRegion = String(state?.ipProxyRegion || '').trim().toUpperCase();
+  if (fallbackRegion === 'US' || fallbackRegion === 'JP') {
+    return fallbackRegion;
+  }
+  return 'US';
+}
+
+async function getOrCreateSessionFingerprintForState(state = {}) {
+  if (!Boolean(state?.browserFingerprintEnabled)) {
+    return null;
+  }
+  if (
+    state?.sessionFingerprint
+    && typeof state.sessionFingerprint === 'object'
+    && !Array.isArray(state.sessionFingerprint)
+    && String(state?.browserFingerprintSessionId || '').trim()
+  ) {
+    return {
+      browserFingerprintSessionId: String(state.browserFingerprintSessionId || '').trim(),
+      browserFingerprintGeneratedAt: Math.max(0, Number(state.browserFingerprintGeneratedAt) || 0),
+      browserFingerprintAppliedTabs: state?.browserFingerprintAppliedTabs && typeof state.browserFingerprintAppliedTabs === 'object'
+        ? state.browserFingerprintAppliedTabs
+        : {},
+      sessionFingerprint: state.sessionFingerprint,
+    };
+  }
+  if (!browserFingerprintModule?.generateFingerprintSession) {
+    throw new Error('Browser fingerprint module is not available.');
+  }
+  const nextFingerprintSession = browserFingerprintModule.generateFingerprintSession({
+    strategy: getBrowserFingerprintStrategyFromState(state),
+    regionHint: resolveFingerprintRegionHint(state),
+  });
+  await setState(nextFingerprintSession);
+  await addLog(
+    `[fingerprint] generated session fingerprint for run ${nextFingerprintSession.browserFingerprintSessionId}`,
+    'info'
+  );
+  return nextFingerprintSession;
+}
+
+async function rerandomizeSessionFingerprintForState(state = {}) {
+  if (!Boolean(state?.browserFingerprintEnabled)) {
+    throw new Error('Browser fingerprint is disabled.');
+  }
+  if (!browserFingerprintModule?.generateFingerprintSession) {
+    throw new Error('Browser fingerprint module is not available.');
+  }
+  const nextFingerprintSession = browserFingerprintModule.generateFingerprintSession({
+    strategy: getBrowserFingerprintStrategyFromState(state),
+    regionHint: resolveFingerprintRegionHint(state),
+  });
+  await setState(nextFingerprintSession);
+  await addLog(
+    `[fingerprint] generated session fingerprint for run ${nextFingerprintSession.browserFingerprintSessionId}`,
+    'info'
+  );
+  return nextFingerprintSession;
 }
 
 const LOG_PREFIX = '[MultiPage:bg]';
@@ -14617,6 +14712,8 @@ const messageRouter = self.MultiPageBackgroundMessageRouter?.createMessageRouter
   buildPersistentSettingsPayload,
   broadcastDataUpdate,
   applyIpProxySettingsFromState: null,
+  getOrCreateSessionFingerprintForState,
+  rerandomizeSessionFingerprintForState,
   cancelScheduledAutoRun,
   checkIcloudSession,
   clearAccountRunHistory: (...args) => clearAndBroadcastAccountRunHistory(...args),
