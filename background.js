@@ -1275,6 +1275,10 @@ const DEFAULT_STATE = {
   accountIdentifierType: null,
   accountIdentifier: '',
   registrationEmailState: { ...DEFAULT_REGISTRATION_EMAIL_STATE },
+  browserFingerprintSessionId: '',
+  browserFingerprintGeneratedAt: 0,
+  browserFingerprintAppliedTabs: {},
+  sessionFingerprint: null,
   email: null, // 运行时邮箱，由程序自动获取并写入，不能手动预填。
   password: null, // 运行时实际密码，由 customPassword 或程序自动生成后写入。
   accounts: [], // 已生成账号记录：{ email, password, createdAt }。
