@@ -114,6 +114,12 @@
         'currentLuckmailPurchase',
         'currentLuckmailMailCursor',
       ]),
+      fingerprint: Object.freeze([
+        'browserFingerprintSessionId',
+        'browserFingerprintGeneratedAt',
+        'browserFingerprintAppliedTabs',
+        'sessionFingerprint',
+      ]),
       identity: Object.freeze([
         'resolvedSignupMethod',
         'accountIdentifierType',
@@ -270,6 +276,7 @@
             plus: {},
             phoneVerification: {},
             luckmail: {},
+            fingerprint: {},
             identity: {},
           },
         },

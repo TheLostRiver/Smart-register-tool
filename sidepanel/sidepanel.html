@@ -1280,6 +1280,109 @@
         <div id="icloud-list" class="icloud-list"></div>
       </div>
     </div>
+    <div id="browser-fingerprint-section" class="data-card browser-fingerprint-card">
+      <div class="section-mini-header">
+        <div class="section-mini-copy">
+          <span class="section-label">浏览器指纹</span>
+          <span class="data-value">每轮流程固定一份，下一轮重新随机</span>
+        </div>
+        <div class="section-mini-actions browser-fingerprint-header-actions">
+          <button id="btn-rerandomize-browser-fingerprint" class="btn btn-outline btn-xs" type="button">本轮重随机</button>
+          <label class="toggle-switch" for="input-browser-fingerprint-enabled" title="启用随机浏览器指纹">
+            <input type="checkbox" id="input-browser-fingerprint-enabled" />
+            <span class="toggle-switch-track" aria-hidden="true">
+              <span class="toggle-switch-thumb"></span>
+            </span>
+          </label>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">生命周期</span>
+        <div class="data-inline">
+          <span id="display-browser-fingerprint-mode" class="data-value mono">per_run</span>
+          <span class="setting-caption">流程启动时生成；同一轮所有步骤共享</span>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">语言</span>
+        <div id="browser-fingerprint-locale-mode-group" class="choice-group" role="group" aria-label="浏览器指纹语言模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-locale-mode="random">随机</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-locale-mode="ip_based">跟随 IP</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">时区</span>
+        <div id="browser-fingerprint-timezone-mode-group" class="choice-group" role="group" aria-label="浏览器指纹时区模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-timezone-mode="random">随机</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-timezone-mode="ip_based">跟随 IP</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">WebRTC</span>
+        <div id="browser-fingerprint-webrtc-mode-group" class="choice-group" role="group" aria-label="浏览器指纹 WebRTC 模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-webrtc-mode="real">真实</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-webrtc-mode="masked">受限</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-webrtc-mode="disabled">禁用</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">字体</span>
+        <div id="browser-fingerprint-fonts-mode-group" class="choice-group" role="group" aria-label="浏览器指纹字体模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-fonts-mode="random_profile">随机档案</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-fonts-mode="real">真实</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">媒体设备</span>
+        <div id="browser-fingerprint-media-devices-mode-group" class="choice-group" role="group" aria-label="浏览器指纹媒体设备模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-media-devices-mode="random_profile">随机档案</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-media-devices-mode="real">真实</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">语音</span>
+        <div id="browser-fingerprint-speech-voices-mode-group" class="choice-group" role="group" aria-label="浏览器指纹语音模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-speech-voices-mode="random_profile">随机档案</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-speech-voices-mode="real">真实</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">颜色方案</span>
+        <div id="browser-fingerprint-color-scheme-mode-group" class="choice-group" role="group" aria-label="浏览器指纹颜色方案模式">
+          <button type="button" class="choice-btn" data-browser-fingerprint-color-scheme-mode="random">随机</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-color-scheme-mode="light">浅色</button>
+          <button type="button" class="choice-btn" data-browser-fingerprint-color-scheme-mode="dark">深色</button>
+        </div>
+      </div>
+      <div class="data-row">
+        <span class="data-label">DNT</span>
+        <div class="data-inline setting-pair browser-fingerprint-toggle-pair">
+          <div class="setting-group setting-group-primary">
+            <label class="toggle-switch" for="input-browser-fingerprint-do-not-track-enabled" title="启用 Do Not Track">
+              <input type="checkbox" id="input-browser-fingerprint-do-not-track-enabled" />
+              <span class="toggle-switch-track" aria-hidden="true">
+                <span class="toggle-switch-thumb"></span>
+              </span>
+              <span>启用</span>
+            </label>
+          </div>
+          <span class="setting-caption">发送 DNT=1</span>
+        </div>
+      </div>
+      <div class="data-row browser-fingerprint-runtime-row">
+        <span class="data-label">运行状态</span>
+        <div class="data-inline browser-fingerprint-runtime-inline">
+          <div id="browser-fingerprint-runtime-status" class="browser-fingerprint-runtime-status state-idle">
+            <span id="browser-fingerprint-runtime-dot" class="browser-fingerprint-runtime-dot" aria-hidden="true"></span>
+            <div class="browser-fingerprint-runtime-content">
+              <div id="browser-fingerprint-runtime-text" class="browser-fingerprint-runtime-main">未生成本轮指纹</div>
+              <div id="browser-fingerprint-runtime-meta" class="browser-fingerprint-runtime-meta">默认按 US 策略待命</div>
+            </div>
+          </div>
+          <span id="browser-fingerprint-runtime-details" class="data-value mono browser-fingerprint-runtime-details">session: -</span>
+        </div>
+      </div>
+    </div>
     <div id="ip-proxy-section" class="data-card ip-proxy-card">
       <div class="section-mini-header">
         <div class="section-mini-copy">
@@ -2033,6 +2136,7 @@
   <script src="custom-email-pool-manager.js"></script>
   <script src="hosted-sms-pool-manager.js"></script>
   <script src="contribution-mode.js"></script>
+  <script src="browser-fingerprint-settings.js"></script>
   <script src="ip-proxy-provider-711proxy.js"></script>
   <script src="ip-proxy-panel.js"></script>
   <script src="account-records-manager.js"></script>

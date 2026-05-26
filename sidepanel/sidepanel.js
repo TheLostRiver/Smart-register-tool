@@ -116,6 +116,22 @@ const rowSub2ApiAccountPriority = document.getElementById('row-sub2api-account-p
 const inputSub2ApiAccountPriority = document.getElementById('input-sub2api-account-priority');
 const rowSub2ApiDefaultProxy = document.getElementById('row-sub2api-default-proxy');
 const inputSub2ApiDefaultProxy = document.getElementById('input-sub2api-default-proxy');
+const browserFingerprintSection = document.getElementById('browser-fingerprint-section');
+const btnRerandomizeBrowserFingerprint = document.getElementById('btn-rerandomize-browser-fingerprint');
+const inputBrowserFingerprintEnabled = document.getElementById('input-browser-fingerprint-enabled');
+const inputBrowserFingerprintDoNotTrackEnabled = document.getElementById('input-browser-fingerprint-do-not-track-enabled');
+const displayBrowserFingerprintMode = document.getElementById('display-browser-fingerprint-mode');
+const browserFingerprintLocaleModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-locale-mode]'));
+const browserFingerprintTimezoneModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-timezone-mode]'));
+const browserFingerprintWebRtcModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-webrtc-mode]'));
+const browserFingerprintFontsModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-fonts-mode]'));
+const browserFingerprintMediaDevicesModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-media-devices-mode]'));
+const browserFingerprintSpeechVoicesModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-speech-voices-mode]'));
+const browserFingerprintColorSchemeModeButtons = Array.from(document.querySelectorAll('[data-browser-fingerprint-color-scheme-mode]'));
+const browserFingerprintRuntimeStatus = document.getElementById('browser-fingerprint-runtime-status');
+const browserFingerprintRuntimeText = document.getElementById('browser-fingerprint-runtime-text');
+const browserFingerprintRuntimeMeta = document.getElementById('browser-fingerprint-runtime-meta');
+const browserFingerprintRuntimeDetails = document.getElementById('browser-fingerprint-runtime-details');
 const rowIpProxyEnabled = document.getElementById('row-ip-proxy-enabled');
 const inputIpProxyEnabled = document.getElementById('input-ip-proxy-enabled');
 const btnToggleIpProxySection = document.getElementById('btn-toggle-ip-proxy-section');
@@ -1643,6 +1659,7 @@ const normalizeLuckmailTimestampValue = window.LuckMailUtils?.normalizeTimestamp
   });
 const sidepanelUpdateService = window.SidepanelUpdateService;
 const contributionContentService = window.SidepanelContributionContentService;
+const browserFingerprintSettingsModule = window.SidepanelBrowserFingerprintSettings?.createBrowserFingerprintSettingsModule?.() || null;
 const sharedFormDialog = window.SidepanelFormDialog?.createFormDialog?.({
   overlay: sharedFormModal,
   titleNode: sharedFormModalTitle,
@@ -3605,6 +3622,176 @@ function applyCloudMailSettingsState(state = {}) {
   }
 }
 
+function normalizeBrowserFingerprintModeValue(value = '') {
+  return String(value || '').trim().toLowerCase() === 'per_run' ? 'per_run' : 'per_run';
+}
+
+function normalizeBrowserFingerprintRandomOrIpModeValue(value = '') {
+  if (browserFingerprintSettingsModule?.normalizeRandomOrIpBased) {
+    return browserFingerprintSettingsModule.normalizeRandomOrIpBased(value);
+  }
+  return String(value || '').trim().toLowerCase() === 'ip_based' ? 'ip_based' : 'random';
+}
+
+function normalizeBrowserFingerprintWebRtcModeValue(value = '') {
+  if (browserFingerprintSettingsModule?.normalizeWebRtcMode) {
+    return browserFingerprintSettingsModule.normalizeWebRtcMode(value);
+  }
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['real', 'disabled', 'masked'].includes(normalized) ? normalized : 'masked';
+}
+
+function normalizeBrowserFingerprintProfileModeValue(value = '') {
+  if (browserFingerprintSettingsModule?.normalizeProfileMode) {
+    return browserFingerprintSettingsModule.normalizeProfileMode(value);
+  }
+  return String(value || '').trim().toLowerCase() === 'real' ? 'real' : 'random_profile';
+}
+
+function normalizeBrowserFingerprintColorSchemeModeValue(value = '') {
+  if (browserFingerprintSettingsModule?.normalizeColorSchemeMode) {
+    return browserFingerprintSettingsModule.normalizeColorSchemeMode(value);
+  }
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['light', 'dark', 'random'].includes(normalized) ? normalized : 'random';
+}
+
+function setChoiceButtonGroupValue(buttons, selectedValue) {
+  const normalizedValue = String(selectedValue || '').trim().toLowerCase();
+  buttons.forEach((button) => {
+    const buttonValue = Object.values(button.dataset || {})[0];
+    const isActive = String(buttonValue || '').trim().toLowerCase() === normalizedValue;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function getActiveChoiceButtonValue(buttons, fallbackValue = '') {
+  const activeButton = buttons.find((button) => button.classList.contains('is-active'));
+  if (!activeButton) {
+    return fallbackValue;
+  }
+  return Object.values(activeButton.dataset || {})[0] || fallbackValue;
+}
+
+function getBrowserFingerprintUiSettings() {
+  return {
+    enabled: Boolean(inputBrowserFingerprintEnabled?.checked),
+    mode: normalizeBrowserFingerprintModeValue(displayBrowserFingerprintMode?.textContent || latestState?.browserFingerprintMode || 'per_run'),
+    localeMode: getActiveChoiceButtonValue(
+      browserFingerprintLocaleModeButtons,
+      latestState?.browserFingerprintLocaleMode || 'random'
+    ),
+    timezoneMode: getActiveChoiceButtonValue(
+      browserFingerprintTimezoneModeButtons,
+      latestState?.browserFingerprintTimezoneMode || 'random'
+    ),
+    webRtcMode: getActiveChoiceButtonValue(
+      browserFingerprintWebRtcModeButtons,
+      latestState?.browserFingerprintWebRtcMode || 'masked'
+    ),
+    fontsMode: getActiveChoiceButtonValue(
+      browserFingerprintFontsModeButtons,
+      latestState?.browserFingerprintFontsMode || 'random_profile'
+    ),
+    mediaDevicesMode: getActiveChoiceButtonValue(
+      browserFingerprintMediaDevicesModeButtons,
+      latestState?.browserFingerprintMediaDevicesMode || 'random_profile'
+    ),
+    speechVoicesMode: getActiveChoiceButtonValue(
+      browserFingerprintSpeechVoicesModeButtons,
+      latestState?.browserFingerprintSpeechVoicesMode || 'random_profile'
+    ),
+    doNotTrackEnabled: Boolean(inputBrowserFingerprintDoNotTrackEnabled?.checked),
+    colorSchemeMode: getActiveChoiceButtonValue(
+      browserFingerprintColorSchemeModeButtons,
+      latestState?.browserFingerprintColorSchemeMode || 'random'
+    ),
+  };
+}
+
+function applyBrowserFingerprintSettingsState(state = {}) {
+  if (displayBrowserFingerprintMode) {
+    displayBrowserFingerprintMode.textContent = normalizeBrowserFingerprintModeValue(state?.browserFingerprintMode);
+  }
+  if (inputBrowserFingerprintEnabled) {
+    inputBrowserFingerprintEnabled.checked = Boolean(state?.browserFingerprintEnabled);
+  }
+  if (inputBrowserFingerprintDoNotTrackEnabled) {
+    inputBrowserFingerprintDoNotTrackEnabled.checked = Boolean(state?.browserFingerprintDoNotTrackEnabled);
+  }
+  setChoiceButtonGroupValue(
+    browserFingerprintLocaleModeButtons,
+    normalizeBrowserFingerprintRandomOrIpModeValue(state?.browserFingerprintLocaleMode)
+  );
+  setChoiceButtonGroupValue(
+    browserFingerprintTimezoneModeButtons,
+    normalizeBrowserFingerprintRandomOrIpModeValue(state?.browserFingerprintTimezoneMode)
+  );
+  setChoiceButtonGroupValue(
+    browserFingerprintWebRtcModeButtons,
+    normalizeBrowserFingerprintWebRtcModeValue(state?.browserFingerprintWebRtcMode)
+  );
+  setChoiceButtonGroupValue(
+    browserFingerprintFontsModeButtons,
+    normalizeBrowserFingerprintProfileModeValue(state?.browserFingerprintFontsMode)
+  );
+  setChoiceButtonGroupValue(
+    browserFingerprintMediaDevicesModeButtons,
+    normalizeBrowserFingerprintProfileModeValue(state?.browserFingerprintMediaDevicesMode)
+  );
+  setChoiceButtonGroupValue(
+    browserFingerprintSpeechVoicesModeButtons,
+    normalizeBrowserFingerprintProfileModeValue(state?.browserFingerprintSpeechVoicesMode)
+  );
+  setChoiceButtonGroupValue(
+    browserFingerprintColorSchemeModeButtons,
+    normalizeBrowserFingerprintColorSchemeModeValue(state?.browserFingerprintColorSchemeMode)
+  );
+}
+
+function updateBrowserFingerprintRuntimeState(state = latestState) {
+  if (!browserFingerprintRuntimeStatus || !browserFingerprintRuntimeText || !browserFingerprintRuntimeMeta || !browserFingerprintRuntimeDetails) {
+    return;
+  }
+  const enabled = Boolean(state?.browserFingerprintEnabled);
+  const runtimeInfo = browserFingerprintSettingsModule?.buildRuntimeInfo
+    ? browserFingerprintSettingsModule.buildRuntimeInfo(state)
+    : {
+      hasSession: Boolean(state?.browserFingerprintSessionId),
+      sessionId: String(state?.browserFingerprintSessionId || '').trim(),
+      generatedAt: Math.max(0, Number(state?.browserFingerprintGeneratedAt) || 0),
+      region: String(state?.sessionFingerprint?.meta?.region || '').trim().toUpperCase(),
+      locale: String(state?.sessionFingerprint?.identity?.language || '').trim(),
+      timezone: String(state?.sessionFingerprint?.identity?.timezone || '').trim(),
+      appliedTabsCount: 0,
+      regionSource: 'default',
+    };
+  const regionSourceLabelMap = {
+    exit_region: '出口检测',
+    proxy_region: '代理配置',
+    default: '默认回退',
+  };
+  browserFingerprintRuntimeStatus.classList.toggle('state-active', enabled && runtimeInfo.hasSession);
+  browserFingerprintRuntimeStatus.classList.toggle('state-idle', !enabled || !runtimeInfo.hasSession);
+  browserFingerprintRuntimeText.textContent = !enabled
+    ? '已关闭，本轮不应用指纹'
+    : runtimeInfo.hasSession
+    ? `已生成本轮指纹，区域 ${runtimeInfo.region || 'US'}`
+    : '未生成本轮指纹';
+  browserFingerprintRuntimeMeta.textContent = !enabled
+    ? '开启后会在每轮流程开始时生成新的浏览器指纹'
+    : runtimeInfo.hasSession
+    ? `${runtimeInfo.locale || '-'} / ${runtimeInfo.timezone || '-'} / 已应用 ${runtimeInfo.appliedTabsCount} 个 tab / 来源 ${regionSourceLabelMap[runtimeInfo.regionSource] || '默认回退'}`
+    : '默认按 US 策略待命';
+  browserFingerprintRuntimeDetails.textContent = enabled && runtimeInfo.hasSession
+    ? `session: ${runtimeInfo.sessionId} / ${runtimeInfo.generatedAt || 0}`
+    : 'session: -';
+  if (btnRerandomizeBrowserFingerprint) {
+    btnRerandomizeBrowserFingerprint.disabled = !enabled;
+  }
+}
+
 function collectSettingsPayload() {
   const defaultGpcHelperApiUrl = typeof DEFAULT_GPC_HELPER_API_URL !== 'undefined'
     ? DEFAULT_GPC_HELPER_API_URL
@@ -4372,6 +4559,34 @@ function collectSettingsPayload() {
   const fixedPlusModeEnabled = typeof FIXED_PLUS_MODE_ENABLED === 'boolean'
     ? FIXED_PLUS_MODE_ENABLED
     : true;
+  const browserFingerprintSettings = browserFingerprintSettingsModule?.buildSettingsPayload
+    ? browserFingerprintSettingsModule.buildSettingsPayload(getBrowserFingerprintUiSettings())
+    : {
+      browserFingerprintEnabled: Boolean(inputBrowserFingerprintEnabled?.checked),
+      browserFingerprintMode: 'per_run',
+      browserFingerprintLocaleMode: normalizeBrowserFingerprintRandomOrIpModeValue(
+        getActiveChoiceButtonValue(browserFingerprintLocaleModeButtons, latestState?.browserFingerprintLocaleMode || 'random')
+      ),
+      browserFingerprintTimezoneMode: normalizeBrowserFingerprintRandomOrIpModeValue(
+        getActiveChoiceButtonValue(browserFingerprintTimezoneModeButtons, latestState?.browserFingerprintTimezoneMode || 'random')
+      ),
+      browserFingerprintWebRtcMode: normalizeBrowserFingerprintWebRtcModeValue(
+        getActiveChoiceButtonValue(browserFingerprintWebRtcModeButtons, latestState?.browserFingerprintWebRtcMode || 'masked')
+      ),
+      browserFingerprintFontsMode: normalizeBrowserFingerprintProfileModeValue(
+        getActiveChoiceButtonValue(browserFingerprintFontsModeButtons, latestState?.browserFingerprintFontsMode || 'random_profile')
+      ),
+      browserFingerprintMediaDevicesMode: normalizeBrowserFingerprintProfileModeValue(
+        getActiveChoiceButtonValue(browserFingerprintMediaDevicesModeButtons, latestState?.browserFingerprintMediaDevicesMode || 'random_profile')
+      ),
+      browserFingerprintSpeechVoicesMode: normalizeBrowserFingerprintProfileModeValue(
+        getActiveChoiceButtonValue(browserFingerprintSpeechVoicesModeButtons, latestState?.browserFingerprintSpeechVoicesMode || 'random_profile')
+      ),
+      browserFingerprintDoNotTrackEnabled: Boolean(inputBrowserFingerprintDoNotTrackEnabled?.checked),
+      browserFingerprintColorSchemeMode: normalizeBrowserFingerprintColorSchemeModeValue(
+        getActiveChoiceButtonValue(browserFingerprintColorSchemeModeButtons, latestState?.browserFingerprintColorSchemeMode || 'random')
+      ),
+    };
   return {
     ...(contributionModeEnabled ? {} : {
       panelMode: effectivePanelMode,
@@ -4478,6 +4693,7 @@ function collectSettingsPayload() {
     ...(contributionModeEnabled ? {} : {
       customPassword: inputPassword.value,
     }),
+    ...browserFingerprintSettings,
     mailProvider: supportedMailProviderNormalizer(selectMailProvider?.value || latestState?.mailProvider),
     mail2925Mode: getSelectedMail2925Mode(),
     mail2925UseAccountPool,
@@ -10833,6 +11049,8 @@ function applySettingsState(state) {
   }
   syncAutoRunState(state);
   renderStepStatuses(latestState);
+  applyBrowserFingerprintSettingsState(state);
+  updateBrowserFingerprintRuntimeState(state);
 
   inputEmail.value = state?.email || '';
   if (typeof syncSignupPhoneInputFromState === 'function') {
@@ -14749,6 +14967,73 @@ localCpaStep9ModeButtons.forEach((button) => {
   });
 });
 
+[
+  browserFingerprintLocaleModeButtons,
+  browserFingerprintTimezoneModeButtons,
+  browserFingerprintWebRtcModeButtons,
+  browserFingerprintFontsModeButtons,
+  browserFingerprintMediaDevicesModeButtons,
+  browserFingerprintSpeechVoicesModeButtons,
+  browserFingerprintColorSchemeModeButtons,
+].forEach((buttonGroup) => {
+  buttonGroup.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.disabled) {
+        return;
+      }
+      const nextValue = Object.values(button.dataset || {})[0];
+      const currentValue = getActiveChoiceButtonValue(buttonGroup, '');
+      if (String(currentValue || '').trim().toLowerCase() === String(nextValue || '').trim().toLowerCase()) {
+        return;
+      }
+      setChoiceButtonGroupValue(buttonGroup, nextValue);
+      markSettingsDirty(true);
+      saveSettings({ silent: true }).catch(() => { });
+    });
+  });
+});
+
+inputBrowserFingerprintEnabled?.addEventListener('change', () => {
+  markSettingsDirty(true);
+  saveSettings({ silent: true }).catch(() => { });
+  updateBrowserFingerprintRuntimeState({
+    ...latestState,
+    browserFingerprintEnabled: Boolean(inputBrowserFingerprintEnabled.checked),
+  });
+});
+
+inputBrowserFingerprintDoNotTrackEnabled?.addEventListener('change', () => {
+  markSettingsDirty(true);
+  saveSettings({ silent: true }).catch(() => { });
+});
+
+btnRerandomizeBrowserFingerprint?.addEventListener('click', async () => {
+  if (!latestState?.browserFingerprintEnabled) {
+    showToast('请先开启浏览器指纹。', 'warn', 1800);
+    return;
+  }
+  try {
+    await persistCurrentSettingsForAction();
+    const response = await sendRuntimeMessageWithTimeout({
+      type: 'RERANDOMIZE_BROWSER_FINGERPRINT',
+      source: 'sidepanel',
+      payload: {},
+    }, 15000, '重随机浏览器指纹');
+    if (response?.error) {
+      throw new Error(response.error);
+    }
+    const nextState = {
+      ...latestState,
+      ...(response || {}),
+    };
+    syncLatestState(nextState);
+    updateBrowserFingerprintRuntimeState(nextState);
+    showToast('本轮浏览器指纹已重随机。', 'success', 1800);
+  } catch (err) {
+    showToast(err?.message || '浏览器指纹重随机失败。', 'error');
+  }
+});
+
 inputLocalCpaJsonPluginDir?.addEventListener('input', () => {
   validateLocalCpaJsonPluginDir();
   markSettingsDirty(true);
@@ -17716,6 +18001,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         syncLatestState(state);
         syncAutoRunState(state);
         updateStatusDisplay(latestState);
+        updateBrowserFingerprintRuntimeState(latestState);
         updateButtonStates();
         if (status === 'completed' || status === 'manual_completed' || status === 'skipped') {
           syncPasswordField(state);
@@ -17785,6 +18071,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         autoRunCountdownTitle: '',
         autoRunCountdownNote: '',
       });
+      updateBrowserFingerprintRuntimeState(latestState);
       applyAutoRunStatus(currentAutoRun);
       updateProgressCounter();
       updateButtonStates();
@@ -17821,6 +18108,27 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         || message.payload.contributionMode !== undefined
       ) {
         syncPasswordField(latestState || {});
+      }
+      if (
+        message.payload.browserFingerprintEnabled !== undefined
+        || message.payload.browserFingerprintMode !== undefined
+        || message.payload.browserFingerprintLocaleMode !== undefined
+        || message.payload.browserFingerprintTimezoneMode !== undefined
+        || message.payload.browserFingerprintWebRtcMode !== undefined
+        || message.payload.browserFingerprintFontsMode !== undefined
+        || message.payload.browserFingerprintMediaDevicesMode !== undefined
+        || message.payload.browserFingerprintSpeechVoicesMode !== undefined
+        || message.payload.browserFingerprintDoNotTrackEnabled !== undefined
+        || message.payload.browserFingerprintColorSchemeMode !== undefined
+        || message.payload.browserFingerprintSessionId !== undefined
+        || message.payload.browserFingerprintGeneratedAt !== undefined
+        || message.payload.browserFingerprintAppliedTabs !== undefined
+        || message.payload.sessionFingerprint !== undefined
+        || message.payload.ipProxyAppliedExitRegion !== undefined
+        || message.payload.ipProxyRegion !== undefined
+      ) {
+        applyBrowserFingerprintSettingsState(latestState);
+        updateBrowserFingerprintRuntimeState(latestState);
       }
       if (message.payload.localCpaStep9Mode !== undefined) {
         setLocalCpaStep9Mode(message.payload.localCpaStep9Mode);
