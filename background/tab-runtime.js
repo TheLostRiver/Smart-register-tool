@@ -790,6 +790,10 @@
 
         if (options.inject) {
           await waitForTabUpdateComplete(tab.id);
+        }
+        await ensureFingerprintAppliedForTab(tab.id, { source });
+
+        if (options.inject) {
           if (options.injectSource) {
             await chrome.scripting.executeScript({
               target: { tabId: tab.id },
@@ -833,6 +837,8 @@
             await waitForTabUpdateComplete(tabId);
           }
 
+          await ensureFingerprintAppliedForTab(tabId, { source });
+
           if (options.inject) {
             if (sourceEntry) {
               registry = setSourceMapValue(registry, source, {
@@ -871,6 +877,7 @@
         await chrome.tabs.update(tabId, { url, active: true });
 
         await waitForTabUpdateComplete(tabId);
+        await ensureFingerprintAppliedForTab(tabId, { source });
 
         if (options.inject) {
           if (options.injectSource) {
@@ -898,6 +905,10 @@
 
       if (options.inject) {
         await waitForTabUpdateComplete(tab.id);
+      }
+      await ensureFingerprintAppliedForTab(tab.id, { source });
+
+      if (options.inject) {
         if (options.injectSource) {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
