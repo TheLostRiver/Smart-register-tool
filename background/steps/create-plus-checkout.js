@@ -98,6 +98,7 @@
       failNodeFromBackground = null,
       fetch: fetchImpl = null,
       getState = null,
+      navigateTabWithFingerprint = null,
       requestStop = null,
       registerTab,
       restoreCheckoutScopedProxySnapshot = null,
@@ -3530,7 +3531,11 @@ function FindProxyForURL(url, host) {
         }
 
         await addLog(`步骤 6：${checkoutModeLabel}已创建，正在打开订阅页面...`, 'ok');
-        await chrome.tabs.update(tabId, { url: targetCheckoutUrl, active: true });
+        if (typeof navigateTabWithFingerprint === 'function') {
+          await navigateTabWithFingerprint(PLUS_CHECKOUT_SOURCE, tabId, targetCheckoutUrl, { active: true });
+        } else {
+          await chrome.tabs.update(tabId, { url: targetCheckoutUrl, active: true });
+        }
         await waitForTabCompleteUntilStopped(tabId);
         const landedTab = await waitForCheckoutSurface(tabId);
         if (landedTab?.url && landedTab.url !== targetCheckoutUrl) {

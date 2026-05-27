@@ -414,3 +414,42 @@ test('reuseOrCreateTab applies the current fingerprint when creating a fresh tab
   ]]);
   assert.equal(getState().browserFingerprintAppliedTabs['805'].fingerprintSessionId, 'seed-runtime');
 });
+
+test('tab runtime reapplies the current fingerprint after a direct tab navigation completes', async () => {
+  const session = buildFingerprintSession();
+  const chromeHarness = createChromeForReuse({
+    tabs: [{
+      id: 909,
+      url: 'https://example.com/original',
+      active: false,
+    }],
+  });
+  const { runtime, applyCalls, getState } = createRuntime({
+    chrome: chromeHarness.chrome,
+    state: {
+      browserFingerprintEnabled: true,
+    },
+    getOrCreateSessionFingerprintForState: async () => session,
+  });
+
+  await runtime.navigateTabWithFingerprint('plus-checkout', 909, 'https://example.com/checkout', {
+    active: true,
+  });
+
+  assert.deepEqual(chromeHarness.updateCalls, [{
+    tabId: 909,
+    updateProperties: {
+      url: 'https://example.com/checkout',
+      active: true,
+    },
+  }]);
+  assert.deepEqual(applyCalls, [[
+    909,
+    session.sessionFingerprint,
+    {
+      fingerprintSessionId: 'seed-runtime',
+      source: 'plus-checkout',
+    },
+  ]]);
+  assert.equal(getState().browserFingerprintAppliedTabs['909'].fingerprintSessionId, 'seed-runtime');
+});

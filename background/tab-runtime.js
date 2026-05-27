@@ -783,6 +783,21 @@
       }
     }
 
+    async function navigateTabWithFingerprint(source, tabId, url, options = {}) {
+      if (!Number.isInteger(tabId)) {
+        throw new Error('A valid tab id is required to navigate with fingerprint.');
+      }
+
+      const updateProperties = {
+        ...(options && typeof options === 'object' ? options : {}),
+        url,
+      };
+      await chrome.tabs.update(tabId, updateProperties);
+      await waitForTabUpdateComplete(tabId);
+      await ensureFingerprintAppliedForTab(tabId, { source });
+      return chrome.tabs.get(tabId);
+    }
+
     async function reuseOrCreateTab(source, url, options = {}) {
       if (options.forceNew) {
         await closeConflictingTabsForSource(source, url);
@@ -1084,6 +1099,7 @@
       rememberSourceLastUrl,
       resolveResponseTimeoutMs,
       reuseOrCreateTab,
+      navigateTabWithFingerprint,
       ensureFingerprintAppliedForTab,
       sendTabMessageWithTimeout,
       sendToContentScript,

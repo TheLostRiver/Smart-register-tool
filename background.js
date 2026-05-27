@@ -14498,6 +14498,7 @@ const plusCheckoutCreateExecutor = self.MultiPageBackgroundPlusCheckoutCreate?.c
   failNodeFromBackground,
   fetch: typeof fetch === 'function' ? fetch.bind(globalThis) : null,
   getState,
+  navigateTabWithFingerprint: (...args) => tabRuntime.navigateTabWithFingerprint(...args),
   requestStop,
   getLastNodeIdForState,
   markCurrentRegistrationAccountUsed,
