@@ -295,6 +295,12 @@
       }
     }
 
+    async function createTabWithFingerprint(source, createProperties = {}, options = {}) {
+      const tab = await createAutomationTab(createProperties, options);
+      await ensureFingerprintAppliedForTab(tab?.id, { source });
+      return tab;
+    }
+
     async function registerTab(source, tabId) {
       let registry = await getTabRegistry();
       let windowId = null;
@@ -783,6 +789,21 @@
       }
     }
 
+    async function navigateTabWithFingerprint(source, tabId, url, options = {}) {
+      if (!Number.isInteger(tabId)) {
+        throw new Error('A valid tab id is required to navigate with fingerprint.');
+      }
+
+      const updateProperties = {
+        ...(options && typeof options === 'object' ? options : {}),
+        url,
+      };
+      await chrome.tabs.update(tabId, updateProperties);
+      await waitForTabUpdateComplete(tabId);
+      await ensureFingerprintAppliedForTab(tabId, { source });
+      return chrome.tabs.get(tabId);
+    }
+
     async function reuseOrCreateTab(source, url, options = {}) {
       if (options.forceNew) {
         await closeConflictingTabsForSource(source, url);
@@ -790,6 +811,10 @@
 
         if (options.inject) {
           await waitForTabUpdateComplete(tab.id);
+        }
+        await ensureFingerprintAppliedForTab(tab.id, { source });
+
+        if (options.inject) {
           if (options.injectSource) {
             await chrome.scripting.executeScript({
               target: { tabId: tab.id },
@@ -833,6 +858,8 @@
             await waitForTabUpdateComplete(tabId);
           }
 
+          await ensureFingerprintAppliedForTab(tabId, { source });
+
           if (options.inject) {
             if (sourceEntry) {
               registry = setSourceMapValue(registry, source, {
@@ -871,6 +898,7 @@
         await chrome.tabs.update(tabId, { url, active: true });
 
         await waitForTabUpdateComplete(tabId);
+        await ensureFingerprintAppliedForTab(tabId, { source });
 
         if (options.inject) {
           if (options.injectSource) {
@@ -898,6 +926,10 @@
 
       if (options.inject) {
         await waitForTabUpdateComplete(tab.id);
+      }
+      await ensureFingerprintAppliedForTab(tab.id, { source });
+
+      if (options.inject) {
         if (options.injectSource) {
           await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -1056,6 +1088,7 @@
       closeLocalhostCallbackTabs,
       closeTabsByUrlPrefix,
       createAutomationTab,
+      createTabWithFingerprint,
       ensureContentScriptReadyOnTab,
       flushCommand,
       getAutomationWindowId,
@@ -1073,6 +1106,7 @@
       rememberSourceLastUrl,
       resolveResponseTimeoutMs,
       reuseOrCreateTab,
+      navigateTabWithFingerprint,
       ensureFingerprintAppliedForTab,
       sendTabMessageWithTimeout,
       sendToContentScript,

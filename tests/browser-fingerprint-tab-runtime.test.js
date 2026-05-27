@@ -108,6 +108,116 @@ function buildFingerprintSession(overrides = {}) {
   };
 }
 
+function createChromeForReuse(overrides = {}) {
+  const tabs = new Map();
+  const listeners = new Set();
+  const createCalls = [];
+  const updateCalls = [];
+  const queryCalls = [];
+  const removeCalls = [];
+  const reloadCalls = [];
+  let nextTabId = Number.isInteger(overrides.nextTabId) ? overrides.nextTabId : 700;
+
+  for (const tab of overrides.tabs || []) {
+    tabs.set(tab.id, {
+      windowId: 1,
+      status: 'complete',
+      active: false,
+      ...tab,
+    });
+  }
+
+  function fireComplete(tabId) {
+    const tab = tabs.get(tabId);
+    if (!tab) {
+      return;
+    }
+    tab.status = 'complete';
+    for (const listener of listeners) {
+      listener(tabId, { status: 'complete' }, { ...tab });
+    }
+  }
+
+  return {
+    chrome: {
+      tabs: {
+        query: async (queryInfo = {}) => {
+          queryCalls.push(queryInfo);
+          return Array.from(tabs.values(), (tab) => ({ ...tab }));
+        },
+        remove: async (tabIds) => {
+          removeCalls.push(tabIds);
+          for (const tabId of Array.isArray(tabIds) ? tabIds : [tabIds]) {
+            tabs.delete(tabId);
+          }
+        },
+        create: async (createProperties = {}) => {
+          createCalls.push(createProperties);
+          const tab = {
+            id: nextTabId,
+            windowId: 1,
+            status: 'loading',
+            active: false,
+            ...createProperties,
+          };
+          nextTabId += 1;
+          tabs.set(tab.id, tab);
+          return { ...tab };
+        },
+        get: async (tabId) => {
+          const tab = tabs.get(tabId);
+          if (!tab) {
+            throw new Error(`Unknown tab: ${tabId}`);
+          }
+          return { ...tab };
+        },
+        update: async (tabId, updateProperties = {}) => {
+          updateCalls.push({ tabId, updateProperties });
+          const existingTab = tabs.get(tabId);
+          if (!existingTab) {
+            throw new Error(`Unknown tab: ${tabId}`);
+          }
+          const nextTab = {
+            ...existingTab,
+            ...updateProperties,
+          };
+          if (Object.prototype.hasOwnProperty.call(updateProperties, 'url')) {
+            nextTab.status = 'loading';
+            setTimeout(() => fireComplete(tabId), 0);
+          }
+          tabs.set(tabId, nextTab);
+          return { ...nextTab };
+        },
+        reload: async (tabId) => {
+          reloadCalls.push(tabId);
+          const existingTab = tabs.get(tabId);
+          if (!existingTab) {
+            throw new Error(`Unknown tab: ${tabId}`);
+          }
+          tabs.set(tabId, {
+            ...existingTab,
+            status: 'loading',
+          });
+          setTimeout(() => fireComplete(tabId), 0);
+        },
+        onUpdated: {
+          addListener: (listener) => {
+            listeners.add(listener);
+          },
+          removeListener: (listener) => {
+            listeners.delete(listener);
+          },
+        },
+      },
+    },
+    createCalls,
+    updateCalls,
+    queryCalls,
+    removeCalls,
+    reloadCalls,
+  };
+}
+
 test('ensureFingerprintAppliedForTab lazily creates and records the current run fingerprint', async () => {
   let getOrCreateCalls = 0;
   const session = buildFingerprintSession();
@@ -201,4 +311,145 @@ test('ensureFingerprintAppliedForTab logs and rethrows when fingerprint applicat
   assert.deepEqual(addLogCalls, [
     ['[fingerprint] fingerprint apply failed on tab 456: cdp attach failed', 'error'],
   ]);
+});
+
+test('reuseOrCreateTab applies the current fingerprint when force-creating a new tab', async () => {
+  const session = buildFingerprintSession();
+  const chromeHarness = createChromeForReuse({ nextTabId: 701 });
+  const { runtime, applyCalls, getState } = createRuntime({
+    chrome: chromeHarness.chrome,
+    state: {
+      browserFingerprintEnabled: true,
+    },
+    getOrCreateSessionFingerprintForState: async () => session,
+  });
+
+  const tabId = await runtime.reuseOrCreateTab('signup-page', 'https://example.com/signup', {
+    forceNew: true,
+  });
+
+  assert.equal(tabId, 701);
+  assert.deepEqual(chromeHarness.createCalls, [
+    { url: 'https://example.com/signup', active: true },
+  ]);
+  assert.deepEqual(applyCalls, [[
+    701,
+    session.sessionFingerprint,
+    {
+      fingerprintSessionId: 'seed-runtime',
+      source: 'signup-page',
+    },
+  ]]);
+  assert.equal(getState().browserFingerprintAppliedTabs['701'].fingerprintSessionId, 'seed-runtime');
+});
+
+test('reuseOrCreateTab applies the current fingerprint when reusing a tab for a new url', async () => {
+  const session = buildFingerprintSession();
+  const chromeHarness = createChromeForReuse({
+    tabs: [{
+      id: 42,
+      url: 'https://example.com/old',
+      active: false,
+    }],
+  });
+  const { runtime, applyCalls, getState } = createRuntime({
+    chrome: chromeHarness.chrome,
+    state: {
+      browserFingerprintEnabled: true,
+      tabRegistry: {
+        'signup-page': {
+          tabId: 42,
+          ready: true,
+        },
+      },
+    },
+    getOrCreateSessionFingerprintForState: async () => session,
+  });
+
+  const tabId = await runtime.reuseOrCreateTab('signup-page', 'https://example.com/new');
+
+  assert.equal(tabId, 42);
+  assert.deepEqual(chromeHarness.updateCalls, [{
+    tabId: 42,
+    updateProperties: {
+      url: 'https://example.com/new',
+      active: true,
+    },
+  }]);
+  assert.deepEqual(applyCalls, [[
+    42,
+    session.sessionFingerprint,
+    {
+      fingerprintSessionId: 'seed-runtime',
+      source: 'signup-page',
+    },
+  ]]);
+  assert.equal(getState().browserFingerprintAppliedTabs['42'].fingerprintSessionId, 'seed-runtime');
+});
+
+test('reuseOrCreateTab applies the current fingerprint when creating a fresh tab without forceNew', async () => {
+  const session = buildFingerprintSession();
+  const chromeHarness = createChromeForReuse({ nextTabId: 805 });
+  const { runtime, applyCalls, getState } = createRuntime({
+    chrome: chromeHarness.chrome,
+    state: {
+      browserFingerprintEnabled: true,
+    },
+    getOrCreateSessionFingerprintForState: async () => session,
+  });
+
+  const tabId = await runtime.reuseOrCreateTab('plus-checkout', 'https://example.com/checkout');
+
+  assert.equal(tabId, 805);
+  assert.deepEqual(chromeHarness.createCalls, [
+    { url: 'https://example.com/checkout', active: true },
+  ]);
+  assert.deepEqual(applyCalls, [[
+    805,
+    session.sessionFingerprint,
+    {
+      fingerprintSessionId: 'seed-runtime',
+      source: 'plus-checkout',
+    },
+  ]]);
+  assert.equal(getState().browserFingerprintAppliedTabs['805'].fingerprintSessionId, 'seed-runtime');
+});
+
+test('tab runtime reapplies the current fingerprint after a direct tab navigation completes', async () => {
+  const session = buildFingerprintSession();
+  const chromeHarness = createChromeForReuse({
+    tabs: [{
+      id: 909,
+      url: 'https://example.com/original',
+      active: false,
+    }],
+  });
+  const { runtime, applyCalls, getState } = createRuntime({
+    chrome: chromeHarness.chrome,
+    state: {
+      browserFingerprintEnabled: true,
+    },
+    getOrCreateSessionFingerprintForState: async () => session,
+  });
+
+  await runtime.navigateTabWithFingerprint('plus-checkout', 909, 'https://example.com/checkout', {
+    active: true,
+  });
+
+  assert.deepEqual(chromeHarness.updateCalls, [{
+    tabId: 909,
+    updateProperties: {
+      url: 'https://example.com/checkout',
+      active: true,
+    },
+  }]);
+  assert.deepEqual(applyCalls, [[
+    909,
+    session.sessionFingerprint,
+    {
+      fingerprintSessionId: 'seed-runtime',
+      source: 'plus-checkout',
+    },
+  ]]);
+  assert.equal(getState().browserFingerprintAppliedTabs['909'].fingerprintSessionId, 'seed-runtime');
 });

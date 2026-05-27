@@ -7720,7 +7720,9 @@ async function openIcloudLoginPage(preferredUrl) {
     return existingAnyIcloudTab.id;
   }
 
-  const created = await createAutomationTab({ url: preferredUrl, active: true });
+  const created = typeof createTabWithFingerprint === 'function'
+    ? await createTabWithFingerprint('icloud-mail', { url: preferredUrl, active: true })
+    : await createAutomationTab({ url: preferredUrl, active: true });
   return created.id;
 }
 
@@ -7933,7 +7935,11 @@ async function ensureIcloudMailContextTab(tabs = [], targetHost = '', preferredH
       const hasTargetHostMailTab = mailTabs.some((tab) => readHostFromTab(tab) === fallbackHost);
       if (!hasTargetHostMailTab && Number.isInteger(mailTabs[0]?.id)) {
         try {
-          await chrome.tabs.update(mailTabs[0].id, { url: fallbackMailUrl, active: false });
+          if (typeof navigateTabWithFingerprint === 'function') {
+            await navigateTabWithFingerprint('icloud-mail', mailTabs[0].id, fallbackMailUrl, { active: false });
+          } else {
+            await chrome.tabs.update(mailTabs[0].id, { url: fallbackMailUrl, active: false });
+          }
           await waitForIcloudMailTabReady(mailTabs[0].id, 9000);
           try {
             return await queryTabsInAutomationWindow({
@@ -7955,13 +7961,23 @@ async function ensureIcloudMailContextTab(tabs = [], targetHost = '', preferredH
 
   try {
     if (sameHostIcloudTab?.id) {
-      await chrome.tabs.update(sameHostIcloudTab.id, { url: fallbackMailUrl, active: false });
+      if (typeof navigateTabWithFingerprint === 'function') {
+        await navigateTabWithFingerprint('icloud-mail', sameHostIcloudTab.id, fallbackMailUrl, { active: false });
+      } else {
+        await chrome.tabs.update(sameHostIcloudTab.id, { url: fallbackMailUrl, active: false });
+      }
       await waitForIcloudMailTabReady(sameHostIcloudTab.id, 9000);
     } else if (anyIcloudTab?.id) {
-      await chrome.tabs.update(anyIcloudTab.id, { url: fallbackMailUrl, active: false });
+      if (typeof navigateTabWithFingerprint === 'function') {
+        await navigateTabWithFingerprint('icloud-mail', anyIcloudTab.id, fallbackMailUrl, { active: false });
+      } else {
+        await chrome.tabs.update(anyIcloudTab.id, { url: fallbackMailUrl, active: false });
+      }
       await waitForIcloudMailTabReady(anyIcloudTab.id, 9000);
     } else {
-      const created = await createAutomationTab({ url: fallbackMailUrl, active: false });
+      const created = typeof createTabWithFingerprint === 'function'
+        ? await createTabWithFingerprint('icloud-mail', { url: fallbackMailUrl, active: false })
+        : await createAutomationTab({ url: fallbackMailUrl, active: false });
       await waitForIcloudMailTabReady(created?.id, 9000);
     }
   } catch {}
@@ -9128,6 +9144,14 @@ async function getAutomationWindowId(options = {}) {
 
 async function createAutomationTab(createProperties = {}, options = {}) {
   return tabRuntime.createAutomationTab(createProperties, options);
+}
+
+async function createTabWithFingerprint(source, createProperties = {}, options = {}) {
+  return tabRuntime.createTabWithFingerprint(source, createProperties, options);
+}
+
+async function navigateTabWithFingerprint(source, tabId, url, options = {}) {
+  return tabRuntime.navigateTabWithFingerprint(source, tabId, url, options);
 }
 
 async function queryTabsInAutomationWindow(queryInfo = {}, options = {}) {
@@ -12792,7 +12816,10 @@ const contributionOAuthManager = self.MultiPageBackgroundContributionOAuth?.crea
   chrome,
   closeLocalhostCallbackTabs,
   createAutomationTab,
+  createTabWithFingerprint: (...args) => tabRuntime.createTabWithFingerprint(...args),
+  fetchImpl: typeof fetch === 'function' ? fetch.bind(globalThis) : null,
   getState,
+  navigateTabWithFingerprint: (...args) => tabRuntime.navigateTabWithFingerprint(...args),
   queryTabsInAutomationWindow,
   setState,
 });
@@ -14301,7 +14328,11 @@ const phoneVerificationHelpers = self.MultiPageBackgroundPhoneVerification?.crea
         step: visibleStep,
         actionLabel: 'direct add-phone navigation',
       });
-    await chrome.tabs.update(tabId, { url: 'https://auth.openai.com/add-phone', active: true });
+    if (typeof navigateTabWithFingerprint === 'function') {
+      await navigateTabWithFingerprint('openai-auth', tabId, 'https://auth.openai.com/add-phone', { active: true });
+    } else {
+      await chrome.tabs.update(tabId, { url: 'https://auth.openai.com/add-phone', active: true });
+    }
     await ensureStep8SignupPageReady(tabId, {
       timeoutMs,
       visibleStep,
@@ -14493,11 +14524,13 @@ const plusCheckoutCreateExecutor = self.MultiPageBackgroundPlusCheckoutCreate?.c
   chrome,
   completeNodeFromBackground,
   createAutomationTab,
+  createTabWithFingerprint: (...args) => tabRuntime.createTabWithFingerprint(...args),
   enableHostedCheckoutAutomation: true,
   ensureContentScriptReadyOnTabUntilStopped,
   failNodeFromBackground,
   fetch: typeof fetch === 'function' ? fetch.bind(globalThis) : null,
   getState,
+  navigateTabWithFingerprint: (...args) => tabRuntime.navigateTabWithFingerprint(...args),
   requestStop,
   getLastNodeIdForState,
   markCurrentRegistrationAccountUsed,
@@ -14541,6 +14574,7 @@ const goPayManualConfirmExecutor = self.MultiPageBackgroundGoPayManualConfirm?.c
   isTabAlive,
   registerTab,
   createAutomationTab,
+  createTabWithFingerprint: (...args) => tabRuntime.createTabWithFingerprint(...args),
   setState,
 });
 const payPalApproveExecutor = self.MultiPageBackgroundPayPalApprove?.createPayPalApproveExecutor({

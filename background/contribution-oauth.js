@@ -32,11 +32,15 @@
   function createContributionOAuthManager(deps = {}) {
     const {
       addLog,
+      apiBaseUrl = API_BASE_URL,
       broadcastDataUpdate,
       chrome,
       closeLocalhostCallbackTabs,
       createAutomationTab = null,
+      createTabWithFingerprint = null,
+      fetchImpl = typeof fetch === 'function' ? fetch.bind(globalThis) : null,
       getState,
+      navigateTabWithFingerprint = null,
       setState,
     } = deps;
 
@@ -183,15 +187,19 @@
     }
 
     async function fetchContributionJson(endpoint, options = {}) {
-      if (!API_BASE_URL) {
+      const requestBaseUrl = normalizeString(apiBaseUrl);
+      if (!requestBaseUrl) {
         throw new Error('贡献服务未配置，当前构建已禁用默认贡献接口。');
+      }
+      if (typeof fetchImpl !== 'function') {
+        throw new Error('Contribution service fetch is unavailable.');
       }
       const controller = new AbortController();
       const timeoutMs = Math.max(1000, Math.floor(Number(options.timeoutMs) || 15000));
       const timer = setTimeout(() => controller.abort(), timeoutMs);
 
       try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const response = await fetchImpl(`${requestBaseUrl}${endpoint}`, {
           method: options.method || 'GET',
           headers: {
             Accept: 'application/json',
@@ -433,17 +441,20 @@
       const preferredTabId = normalizePositiveInteger(options.tabId || currentState.contributionAuthTabId, 0);
       let tab = null;
 
-      if (preferredTabId) {
-        tab = await chrome.tabs.update(preferredTabId, {
-          url: normalizedUrl,
-          active: true,
-        }).catch(() => null);
+      if (preferredTabId && typeof navigateTabWithFingerprint === 'function') {
+        tab = await navigateTabWithFingerprint('contribution-auth', preferredTabId, normalizedUrl, { active: true }).catch(() => null);
       }
 
       if (!tab) {
-        tab = typeof createAutomationTab === 'function'
-          ? await createAutomationTab({ url: normalizedUrl, active: true })
-          : await chrome.tabs.create({ url: normalizedUrl, active: true });
+        tab = typeof createTabWithFingerprint === 'function'
+          ? await createTabWithFingerprint('contribution-auth', { url: normalizedUrl, active: true })
+          : typeof createAutomationTab === 'function'
+            ? await createAutomationTab({ url: normalizedUrl, active: true })
+            : null;
+      }
+
+      if (!tab) {
+        throw new Error('Contribution auth tab helpers are unavailable.');
       }
 
       await applyRuntimeUpdates({

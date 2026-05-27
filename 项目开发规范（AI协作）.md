@@ -459,6 +459,7 @@ npm test
 - 不能把业务模式判断散落到多个文件里各写一份；优先收敛到共享工具、共享步骤定义或明确的执行器入口。
 - 新增配置项必须走完整链路：默认值、归一化、保存、恢复、导入导出、UI 显隐、步骤刷新、测试。
 - 新增流程节点必须走完整链路：共享定义、后台 registry、执行器、自动运行、手动跳过、完成状态、失败恢复、日志元数据、测试。
+- 新增“带 URL 的新开页 / 跳页”逻辑时，必须优先复用统一的指纹标签页入口，例如 `createTabWithFingerprint(...)`、`navigateTabWithFingerprint(...)` 或 `reuseOrCreateTab(...)`；只有“仅切前台、不改 URL”的场景，才允许继续直接使用 `chrome.tabs.update(tabId, { active: true })`。
 
 ## 8. AI 开发时的自检清单
 
