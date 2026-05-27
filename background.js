@@ -9130,6 +9130,14 @@ async function createAutomationTab(createProperties = {}, options = {}) {
   return tabRuntime.createAutomationTab(createProperties, options);
 }
 
+async function createTabWithFingerprint(source, createProperties = {}, options = {}) {
+  return tabRuntime.createTabWithFingerprint(source, createProperties, options);
+}
+
+async function navigateTabWithFingerprint(source, tabId, url, options = {}) {
+  return tabRuntime.navigateTabWithFingerprint(source, tabId, url, options);
+}
+
 async function queryTabsInAutomationWindow(queryInfo = {}, options = {}) {
   return tabRuntime.queryTabsInAutomationWindow(queryInfo, options);
 }

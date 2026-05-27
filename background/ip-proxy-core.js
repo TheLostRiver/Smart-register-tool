@@ -6,6 +6,7 @@ let currentIpProxyForceDirectAuthEntry = null;
 let ipProxyExitDetectionToken = 0;
 let ipProxyProbeInFlightPromise = null;
 let lastAppliedIpProxyEntrySignature = '';
+const IP_PROXY_PROBE_SOURCE = 'ip-proxy-probe';
 let ipProxyAuthHostVariantToggle = false;
 const ipProxyHostResolveCache = new Map();
 const IP_PROXY_HOST_RESOLVE_CACHE_TTL_MS = 60 * 1000;
@@ -46,6 +47,9 @@ function buildAutomationWindowUnavailableError(error) {
 }
 
 async function createAutomationScopedTab(createProperties = {}, options = {}) {
+  if (typeof createTabWithFingerprint === 'function' && createProperties?.url) {
+    return createTabWithFingerprint(IP_PROXY_PROBE_SOURCE, createProperties || {}, options);
+  }
   const windowId = normalizeAutomationWindowId(
     options?.automationWindowId
       ?? options?.windowId
@@ -2148,10 +2152,16 @@ async function probeExitInfoByTabNavigationWithEndpoints(tabId, timeoutMs = 1000
       ? `${endpointText}&_multipage_proxy_probe=${Date.now()}`
       : `${endpointText}?_multipage_proxy_probe=${Date.now()}`;
     try {
-      await chrome.tabs.update(tabId, {
-        url: probeTargetUrl,
-        active: false,
-      });
+      if (typeof navigateTabWithFingerprint === 'function') {
+        await navigateTabWithFingerprint(IP_PROXY_PROBE_SOURCE, tabId, probeTargetUrl, {
+          active: false,
+        });
+      } else {
+        await chrome.tabs.update(tabId, {
+          url: probeTargetUrl,
+          active: false,
+        });
+      }
       const ready = await waitForPageContextProbeTabReady(tabId, perEndpointTimeoutMs);
       if (!ready) {
         if (Array.isArray(errors)) {
@@ -2537,10 +2547,16 @@ async function detectProxyExitInfoByPageContext(options = {}) {
           let baselineIp = '';
           try {
             const baselineUrl = `${IP_PROXY_PAGE_CONTEXT_BASELINE_URL}?_multipage_proxy_baseline=${Date.now()}`;
-            await chrome.tabs.update(probeTabId, {
-              url: baselineUrl,
-              active: false,
-            });
+            if (typeof navigateTabWithFingerprint === 'function') {
+              await navigateTabWithFingerprint(IP_PROXY_PROBE_SOURCE, probeTabId, baselineUrl, {
+                active: false,
+              });
+            } else {
+              await chrome.tabs.update(probeTabId, {
+                url: baselineUrl,
+                active: false,
+              });
+            }
             const baselineReady = await waitForPageContextProbeTabReady(
               probeTabId,
               Math.max(2000, Math.min(IP_PROXY_PAGE_CONTEXT_BASELINE_TIMEOUT_MS, timeoutMs + 1500))
