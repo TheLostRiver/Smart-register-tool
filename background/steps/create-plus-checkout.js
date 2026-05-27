@@ -1801,9 +1801,11 @@ function FindProxyForURL(url, host) {
       if (!chrome?.tabs || !chrome?.scripting?.executeScript) {
         throw new Error('当前运行环境不支持浏览器标签页兜底取码。');
       }
-      const created = typeof createAutomationTab === 'function'
-        ? await createAutomationTab({ url: verificationUrl, active: false })
-        : await chrome.tabs.create({ url: verificationUrl, active: false });
+      const created = typeof createTabWithFingerprint === 'function'
+        ? await createTabWithFingerprint(PLUS_CHECKOUT_SOURCE, { url: verificationUrl, active: false })
+        : typeof createAutomationTab === 'function'
+          ? await createAutomationTab({ url: verificationUrl, active: false })
+          : await chrome.tabs.create({ url: verificationUrl, active: false });
       const tabId = Number(created?.id);
       if (!Number.isInteger(tabId)) {
         throw new Error('浏览器标签页兜底取码失败：无法打开验证码接口页面。');

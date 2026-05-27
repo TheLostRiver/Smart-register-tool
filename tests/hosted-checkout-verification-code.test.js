@@ -11,6 +11,66 @@ function createExecutorWithPayload(payload) {
   });
 }
 
+test('manual hosted checkout code fetch uses createTabWithFingerprint for browser-tab fallback', async () => {
+  const helperCalls = [];
+  const removedTabIds = [];
+  const waitCalls = [];
+  const logCalls = [];
+  const executor = globalThis.MultiPageBackgroundPlusCheckoutCreate.createPlusCheckoutCreateExecutor({
+    addLog: async (...args) => {
+      logCalls.push(args);
+    },
+    chrome: {
+      scripting: {
+        executeScript: async () => ([{
+          result: JSON.stringify({
+            data: {
+              sms: "PayPal: 288652 is your security code. Don't share it.",
+            },
+          }),
+        }]),
+      },
+      tabs: {
+        create: async () => {
+          throw new Error('chrome.tabs.create should not be used when createTabWithFingerprint is provided');
+        },
+        remove: async (tabId) => {
+          removedTabIds.push(tabId);
+        },
+      },
+    },
+    createTabWithFingerprint: async (source, createProperties) => {
+      helperCalls.push({ source, createProperties });
+      return {
+        id: 2468,
+        ...createProperties,
+      };
+    },
+    fetch: async () => ({
+      text: async () => JSON.stringify({ status: 'waiting' }),
+    }),
+    sleepWithStop: async () => {},
+    throwIfStopped: () => {},
+    waitForTabCompleteUntilStopped: async (...args) => {
+      waitCalls.push(args);
+    },
+  });
+
+  const result = await executor.fetchHostedCheckoutVerificationCodeManually({
+    verificationUrl: 'http://example.test/api/get_sms?key=test',
+  });
+
+  assert.equal(result.code, '288652');
+  assert.equal(result.verificationUrl, 'http://example.test/api/get_sms?key=test');
+  assert.equal(helperCalls.length, 1);
+  assert.equal(helperCalls[0].source, 'plus-checkout');
+  assert.equal(helperCalls[0].createProperties.url, 'http://example.test/api/get_sms?key=test');
+  assert.equal(helperCalls[0].createProperties.active, false);
+  assert.deepEqual(waitCalls, [[2468, { timeoutMs: 15000 }]]);
+  assert.deepEqual(removedTabIds, [2468]);
+  assert.equal(logCalls.some((args) => String(args[0] || '').includes('浏览器标签页兜底')), true);
+});
+
 async function fetchManualCode(payload) {
   const executor = createExecutorWithPayload(payload);
   const result = await executor.fetchHostedCheckoutVerificationCodeManually({
