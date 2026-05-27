@@ -381,6 +381,17 @@ buildFingerprintSettingsPatch(input)
    - 如未应用则执行双通道应用
    - 更新 `browserFingerprintAppliedTabs`
 
+当前实现已经在 `background/tab-runtime.js` 中沉淀出三种推荐入口，后续新增流程步骤或后台辅助链路时应优先复用：
+
+1. `ensureFingerprintAppliedForTab(tabId, { source })`
+   - 适用于：tab 已经存在，只需要确保当前会话指纹已落到该 tab。
+2. `navigateTabWithFingerprint(source, tabId, url, options)`
+   - 适用于：复用已有 tab，并把它导航到新的 URL。
+3. `createTabWithFingerprint(source, createProperties, options)`
+   - 适用于：需要新开一个 automation tab，并在创建后立即应用当前会话指纹。
+
+如果某段逻辑只是“切到前台”而不改 URL，可以继续直接使用 `chrome.tabs.update(tabId, { active: true })`；只有“新开到某个 URL”或“把现有 tab 导航到某个 URL”这两类入口，才应优先走上述统一 helper。
+
 ### 10.2 运行时懒生成
 
 如果用户不是从完整自动流程启动，而是手动从中间步骤开始：
