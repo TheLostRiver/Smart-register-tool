@@ -54,7 +54,7 @@
         ? await createTabWithFingerprint(PLUS_CHECKOUT_SOURCE, { url: checkoutUrl, active: true })
         : typeof createAutomationTab === 'function'
         ? await createAutomationTab({ url: checkoutUrl, active: true })
-        : await chrome.tabs.create({ url: checkoutUrl, active: true });
+        : null;
       const tabId = Number(tab?.id) || 0;
       if (!tabId) {
         throw new Error('步骤 7：重新打开 GoPay 订阅页失败。');

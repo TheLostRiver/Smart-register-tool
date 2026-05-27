@@ -441,13 +441,8 @@
       const preferredTabId = normalizePositiveInteger(options.tabId || currentState.contributionAuthTabId, 0);
       let tab = null;
 
-      if (preferredTabId) {
-        tab = typeof navigateTabWithFingerprint === 'function'
-          ? await navigateTabWithFingerprint('contribution-auth', preferredTabId, normalizedUrl, { active: true }).catch(() => null)
-          : await chrome.tabs.update(preferredTabId, {
-            url: normalizedUrl,
-            active: true,
-          }).catch(() => null);
+      if (preferredTabId && typeof navigateTabWithFingerprint === 'function') {
+        tab = await navigateTabWithFingerprint('contribution-auth', preferredTabId, normalizedUrl, { active: true }).catch(() => null);
       }
 
       if (!tab) {
@@ -455,7 +450,11 @@
           ? await createTabWithFingerprint('contribution-auth', { url: normalizedUrl, active: true })
           : typeof createAutomationTab === 'function'
             ? await createAutomationTab({ url: normalizedUrl, active: true })
-            : await chrome.tabs.create({ url: normalizedUrl, active: true });
+            : null;
+      }
+
+      if (!tab) {
+        throw new Error('Contribution auth tab helpers are unavailable.');
       }
 
       await applyRuntimeUpdates({

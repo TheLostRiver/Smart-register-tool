@@ -1474,7 +1474,7 @@ function FindProxyForURL(url, host) {
         ? await createTabWithFingerprint(PLUS_CHECKOUT_SOURCE, { url: PLUS_CHECKOUT_ENTRY_URL, active: true })
         : typeof createAutomationTab === 'function'
         ? await createAutomationTab({ url: PLUS_CHECKOUT_ENTRY_URL, active: true })
-        : await chrome.tabs.create({ url: PLUS_CHECKOUT_ENTRY_URL, active: true });
+        : null;
       const tabId = Number(tab?.id);
       if (!Number.isInteger(tabId)) {
         throw new Error('步骤 6：打开 ChatGPT 页面失败，无法创建订阅页。');
@@ -1805,7 +1805,7 @@ function FindProxyForURL(url, host) {
         ? await createTabWithFingerprint(PLUS_CHECKOUT_SOURCE, { url: verificationUrl, active: false })
         : typeof createAutomationTab === 'function'
           ? await createAutomationTab({ url: verificationUrl, active: false })
-          : await chrome.tabs.create({ url: verificationUrl, active: false });
+          : null;
       const tabId = Number(created?.id);
       if (!Number.isInteger(tabId)) {
         throw new Error('浏览器标签页兜底取码失败：无法打开验证码接口页面。');
@@ -3536,11 +3536,10 @@ function FindProxyForURL(url, host) {
         }
 
         await addLog(`步骤 6：${checkoutModeLabel}已创建，正在打开订阅页面...`, 'ok');
-        if (typeof navigateTabWithFingerprint === 'function') {
-          await navigateTabWithFingerprint(PLUS_CHECKOUT_SOURCE, tabId, targetCheckoutUrl, { active: true });
-        } else {
-          await chrome.tabs.update(tabId, { url: targetCheckoutUrl, active: true });
+        if (typeof navigateTabWithFingerprint !== 'function') {
+          throw new Error('步骤 6：缺少订阅页指纹导航能力，无法打开订阅页面。');
         }
+        await navigateTabWithFingerprint(PLUS_CHECKOUT_SOURCE, tabId, targetCheckoutUrl, { active: true });
         await waitForTabCompleteUntilStopped(tabId);
         const landedTab = await waitForCheckoutSurface(tabId);
         if (landedTab?.url && landedTab.url !== targetCheckoutUrl) {
