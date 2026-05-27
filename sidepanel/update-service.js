@@ -1,6 +1,6 @@
 (() => {
-  const GITHUB_OWNER = 'FoundZiGu';
-  const GITHUB_REPO = 'GuJumpgate';
+  const GITHUB_OWNER = 'TheLostRiver';
+  const GITHUB_REPO = 'Smart-register-tool';
   const RELEASES_PAGE_URL = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
   const RELEASES_API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=10`;
   const CACHE_KEY = 'multipage-release-snapshot-v1';

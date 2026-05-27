@@ -54,7 +54,7 @@
 
 ## 安装与使用
 
-先到本仓库的 [Releases](https://github.com/FoundZiGu/GuJumpgate/releases) 页面下载扩展压缩包并解压。
+先到本仓库的 [Releases](https://github.com/TheLostRiver/Smart-register-tool/releases) 页面下载扩展压缩包并解压。
 
 ### 1. 打开扩展开发者模式
 
@@ -161,7 +161,3 @@
 ## 使用提示
 
 - 使用者应自行遵守目标平台服务条款、适用法律及其所在地区的监管要求
-
-## 友情链接
-
-- [LINUX DO - 新的理想型社区](https://linux.do/)

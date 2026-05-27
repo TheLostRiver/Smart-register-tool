@@ -16,7 +16,7 @@
     } = context;
 
     const contributionPortalUrl = constants.contributionPortalUrl || '';
-    const guideRepositoryUrl = constants.guideRepositoryUrl || 'https://github.com/FoundZiGu/GuJumpgate';
+    const guideRepositoryUrl = constants.guideRepositoryUrl || 'https://github.com/TheLostRiver/Smart-register-tool';
     const contributionUploadUrl = constants.contributionUploadUrl || '';
     const pollIntervalMs = Math.max(1500, Math.floor(Number(constants.pollIntervalMs) || 2500));
 
