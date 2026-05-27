@@ -12792,7 +12792,10 @@ const contributionOAuthManager = self.MultiPageBackgroundContributionOAuth?.crea
   chrome,
   closeLocalhostCallbackTabs,
   createAutomationTab,
+  createTabWithFingerprint: (...args) => tabRuntime.createTabWithFingerprint(...args),
+  fetchImpl: typeof fetch === 'function' ? fetch.bind(globalThis) : null,
   getState,
+  navigateTabWithFingerprint: (...args) => tabRuntime.navigateTabWithFingerprint(...args),
   queryTabsInAutomationWindow,
   setState,
 });
