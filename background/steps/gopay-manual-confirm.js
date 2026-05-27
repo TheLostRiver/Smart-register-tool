@@ -11,6 +11,7 @@
       broadcastDataUpdate,
       chrome,
       createAutomationTab = null,
+      createTabWithFingerprint = null,
       getTabId,
       isTabAlive,
       registerTab,
@@ -49,7 +50,9 @@
         throw new Error('步骤 7：无法自动重新打开 GoPay 订阅页。');
       }
 
-      const tab = typeof createAutomationTab === 'function'
+      const tab = typeof createTabWithFingerprint === 'function'
+        ? await createTabWithFingerprint(PLUS_CHECKOUT_SOURCE, { url: checkoutUrl, active: true })
+        : typeof createAutomationTab === 'function'
         ? await createAutomationTab({ url: checkoutUrl, active: true })
         : await chrome.tabs.create({ url: checkoutUrl, active: true });
       const tabId = Number(tab?.id) || 0;

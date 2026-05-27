@@ -14493,6 +14493,7 @@ const plusCheckoutCreateExecutor = self.MultiPageBackgroundPlusCheckoutCreate?.c
   chrome,
   completeNodeFromBackground,
   createAutomationTab,
+  createTabWithFingerprint: (...args) => tabRuntime.createTabWithFingerprint(...args),
   enableHostedCheckoutAutomation: true,
   ensureContentScriptReadyOnTabUntilStopped,
   failNodeFromBackground,
@@ -14542,6 +14543,7 @@ const goPayManualConfirmExecutor = self.MultiPageBackgroundGoPayManualConfirm?.c
   isTabAlive,
   registerTab,
   createAutomationTab,
+  createTabWithFingerprint: (...args) => tabRuntime.createTabWithFingerprint(...args),
   setState,
 });
 const payPalApproveExecutor = self.MultiPageBackgroundPayPalApprove?.createPayPalApproveExecutor({

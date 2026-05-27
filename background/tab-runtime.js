@@ -295,6 +295,12 @@
       }
     }
 
+    async function createTabWithFingerprint(source, createProperties = {}, options = {}) {
+      const tab = await createAutomationTab(createProperties, options);
+      await ensureFingerprintAppliedForTab(tab?.id, { source });
+      return tab;
+    }
+
     async function registerTab(source, tabId) {
       let registry = await getTabRegistry();
       let windowId = null;
@@ -1082,6 +1088,7 @@
       closeLocalhostCallbackTabs,
       closeTabsByUrlPrefix,
       createAutomationTab,
+      createTabWithFingerprint,
       ensureContentScriptReadyOnTab,
       flushCommand,
       getAutomationWindowId,

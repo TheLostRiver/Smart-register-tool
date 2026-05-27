@@ -97,6 +97,7 @@
       ensureContentScriptReadyOnTabUntilStopped,
       failNodeFromBackground = null,
       fetch: fetchImpl = null,
+      createTabWithFingerprint = null,
       getState = null,
       navigateTabWithFingerprint = null,
       requestStop = null,
@@ -1469,7 +1470,9 @@ function FindProxyForURL(url, host) {
     }
 
     async function openFreshChatGptTabForCheckoutCreate() {
-      const tab = typeof createAutomationTab === 'function'
+      const tab = typeof createTabWithFingerprint === 'function'
+        ? await createTabWithFingerprint(PLUS_CHECKOUT_SOURCE, { url: PLUS_CHECKOUT_ENTRY_URL, active: true })
+        : typeof createAutomationTab === 'function'
         ? await createAutomationTab({ url: PLUS_CHECKOUT_ENTRY_URL, active: true })
         : await chrome.tabs.create({ url: PLUS_CHECKOUT_ENTRY_URL, active: true });
       const tabId = Number(tab?.id);
