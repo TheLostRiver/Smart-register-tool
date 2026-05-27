@@ -7720,7 +7720,9 @@ async function openIcloudLoginPage(preferredUrl) {
     return existingAnyIcloudTab.id;
   }
 
-  const created = await createAutomationTab({ url: preferredUrl, active: true });
+  const created = typeof createTabWithFingerprint === 'function'
+    ? await createTabWithFingerprint('icloud-mail', { url: preferredUrl, active: true })
+    : await createAutomationTab({ url: preferredUrl, active: true });
   return created.id;
 }
 
@@ -7933,7 +7935,11 @@ async function ensureIcloudMailContextTab(tabs = [], targetHost = '', preferredH
       const hasTargetHostMailTab = mailTabs.some((tab) => readHostFromTab(tab) === fallbackHost);
       if (!hasTargetHostMailTab && Number.isInteger(mailTabs[0]?.id)) {
         try {
-          await chrome.tabs.update(mailTabs[0].id, { url: fallbackMailUrl, active: false });
+          if (typeof navigateTabWithFingerprint === 'function') {
+            await navigateTabWithFingerprint('icloud-mail', mailTabs[0].id, fallbackMailUrl, { active: false });
+          } else {
+            await chrome.tabs.update(mailTabs[0].id, { url: fallbackMailUrl, active: false });
+          }
           await waitForIcloudMailTabReady(mailTabs[0].id, 9000);
           try {
             return await queryTabsInAutomationWindow({
@@ -7955,13 +7961,23 @@ async function ensureIcloudMailContextTab(tabs = [], targetHost = '', preferredH
 
   try {
     if (sameHostIcloudTab?.id) {
-      await chrome.tabs.update(sameHostIcloudTab.id, { url: fallbackMailUrl, active: false });
+      if (typeof navigateTabWithFingerprint === 'function') {
+        await navigateTabWithFingerprint('icloud-mail', sameHostIcloudTab.id, fallbackMailUrl, { active: false });
+      } else {
+        await chrome.tabs.update(sameHostIcloudTab.id, { url: fallbackMailUrl, active: false });
+      }
       await waitForIcloudMailTabReady(sameHostIcloudTab.id, 9000);
     } else if (anyIcloudTab?.id) {
-      await chrome.tabs.update(anyIcloudTab.id, { url: fallbackMailUrl, active: false });
+      if (typeof navigateTabWithFingerprint === 'function') {
+        await navigateTabWithFingerprint('icloud-mail', anyIcloudTab.id, fallbackMailUrl, { active: false });
+      } else {
+        await chrome.tabs.update(anyIcloudTab.id, { url: fallbackMailUrl, active: false });
+      }
       await waitForIcloudMailTabReady(anyIcloudTab.id, 9000);
     } else {
-      const created = await createAutomationTab({ url: fallbackMailUrl, active: false });
+      const created = typeof createTabWithFingerprint === 'function'
+        ? await createTabWithFingerprint('icloud-mail', { url: fallbackMailUrl, active: false })
+        : await createAutomationTab({ url: fallbackMailUrl, active: false });
       await waitForIcloudMailTabReady(created?.id, 9000);
     }
   } catch {}
