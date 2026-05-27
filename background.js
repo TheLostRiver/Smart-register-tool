@@ -14312,7 +14312,11 @@ const phoneVerificationHelpers = self.MultiPageBackgroundPhoneVerification?.crea
         step: visibleStep,
         actionLabel: 'direct add-phone navigation',
       });
-    await chrome.tabs.update(tabId, { url: 'https://auth.openai.com/add-phone', active: true });
+    if (typeof navigateTabWithFingerprint === 'function') {
+      await navigateTabWithFingerprint('openai-auth', tabId, 'https://auth.openai.com/add-phone', { active: true });
+    } else {
+      await chrome.tabs.update(tabId, { url: 'https://auth.openai.com/add-phone', active: true });
+    }
     await ensureStep8SignupPageReady(tabId, {
       timeoutMs,
       visibleStep,
